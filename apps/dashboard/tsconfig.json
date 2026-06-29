@@ -10,7 +10,18 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "incremental": true,
-    "plugins": [{ "name": "next" }]
+    "plugins": [{ "name": "next" }],
+    "baseUrl": "../..",
+    "paths": {
+      "@sbc/core": ["./packages/core/dist/index.js"],
+      "@sbc/core/*": ["./packages/core/dist/*"],
+      "@sbc/generators": ["./packages/generators/dist/index.js"],
+      "@sbc/generators/*": ["./packages/generators/dist/*"],
+      "@sbc/shared": ["./shared/types/dist/index.js"],
+      "@sbc/shared/*": ["./shared/types/dist/*"],
+      "@sbc/cloud": ["./packages/cloud/dist/index.js"],
+      "@sbc/cloud/*": ["./packages/cloud/dist/*"]
+    }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]
