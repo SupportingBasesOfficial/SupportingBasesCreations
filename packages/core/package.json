@@ -32,7 +32,8 @@
   },
   "dependencies": {
     "ts-morph": "^23.0.0",
-    "zod": "^3.23.0"
+    "zod": "^3.23.0",
+    "yjs": "^13.6.0"
   },
   "devDependencies": {
     "@types/node": "^20.12.0",

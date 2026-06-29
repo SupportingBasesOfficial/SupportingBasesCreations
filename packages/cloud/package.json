@@ -1,29 +1,28 @@
 {
-  "name": "@sbc/cli",
+  "name": "@sbc/cloud",
   "version": "1.0.0",
   "type": "module",
-  "bin": {
-    "sbc": "./dist/index.js"
-  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -b",
     "check-types": "tsc --noEmit",
     "dev": "tsc --watch",
+    "lint": "eslint src/",
     "test": "vitest run"
   },
   "dependencies": {
-    "@sbc/core": "workspace:*",
-    "@sbc/generators": "workspace:*",
     "@sbc/shared": "workspace:*",
-    "commander": "^12.0.0",
-    "js-yaml": "^5.2.0",
-    "ora": "^9.4.1"
+    "@sbc/core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.12.0",
-    "@types/ora": "^3.2.0",
     "typescript": "^5.4.5",
     "vitest": "^1.6.0"
   }

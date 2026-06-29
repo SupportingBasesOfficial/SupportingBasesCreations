@@ -1,0 +1,184 @@
+"use client";
+
+import { useCallback, type DragEvent } from "react";
+import {
+  ReactFlow,
+  ReactFlowProvider,
+  Background,
+  Controls,
+  MiniMap,
+  type Connection,
+  type Edge,
+  type Node,
+  type NodeMouseHandler,
+  BackgroundVariant,
+  ConnectionMode,
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
+import { useGraphStore } from "../../store/graphStore";
+import { useGraphValidation } from "../../hooks/useGraphValidation";
+import { CustomNode, type CustomNodeData } from "./nodes/CustomNode";
+import { NODE_PALETTE, getNodeConfig } from "./nodes/NodePalette";
+import { NodeType, type GraphNode, type GraphEdge } from "@sbc/shared";
+import { nanoid } from "nanoid";
+
+const nodeTypes = { custom: CustomNode };
+
+function ArchitectureCanvasInner() {
+  const nodes = useGraphStore((s) => s.nodes);
+  const edges = useGraphStore((s) => s.edges);
+  const addNode = useGraphStore((s) => s.addNode);
+  const removeNode = useGraphStore((s) => s.removeNode);
+  const updateNodePosition = useGraphStore((s) => s.updateNodePosition);
+  const addEdgeStore = useGraphStore((s) => s.addEdge);
+  const removeEdge = useGraphStore((s) => s.removeEdge);
+  const setSelectedNode = useGraphStore((s) => s.setSelectedNode);
+  const selectedNodeId = useGraphStore((s) => s.selectedNodeId);
+  const { getErrorForNode, getErrorForEdge } = useGraphValidation();
+
+  const rfNodes: Node[] = nodes.map((n) => {
+    const config = getNodeConfig(n.type);
+    const error = getErrorForNode(n.id);
+    return {
+      id: n.id,
+      type: "custom",
+      position: n.position,
+      data: {
+        label: n.data.label,
+        description: n.data.description,
+        nodeType: config.label,
+        color: config.color,
+        icon: config.icon,
+        hasError: !!error,
+        errorMessage: error?.message,
+      } as CustomNodeData,
+      selected: n.id === selectedNodeId,
+    };
+  });
+
+  const rfEdges: Edge[] = edges.map((e) => {
+    const error = getErrorForEdge(e.id);
+    return {
+      id: e.id,
+      source: e.source,
+      target: e.target,
+      animated: !error,
+      style: error
+        ? { stroke: "#ef4444", strokeWidth: 2 }
+        : { stroke: "#94a3b8", strokeWidth: 2 },
+    };
+  });
+
+  const onConnect = useCallback(
+    (connection: Connection) => {
+      if (!connection.source || !connection.target) return;
+      const edge: GraphEdge = {
+        id: nanoid(),
+        source: connection.source,
+        target: connection.target,
+      };
+      addEdgeStore(edge);
+    },
+    [addEdgeStore],
+  );
+
+  const onNodeDragStop = useCallback(
+    (_event: unknown, node: Node) => {
+      updateNodePosition(node.id, node.position);
+    },
+    [updateNodePosition],
+  );
+
+  const onNodeClick: NodeMouseHandler = useCallback(
+    (_event, node) => {
+      setSelectedNode(node.id);
+    },
+    [setSelectedNode],
+  );
+
+  const onPaneClick = useCallback(() => {
+    setSelectedNode(null);
+  }, [setSelectedNode]);
+
+  const onDragOver = useCallback((event: DragEvent) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+  }, []);
+
+  const onDrop = useCallback(
+    (event: DragEvent) => {
+      event.preventDefault();
+      const nodeTypeStr = event.dataTransfer.getData("application/nodeType");
+      if (!nodeTypeStr) return;
+
+      const nodeType = nodeTypeStr as NodeType;
+      const config = getNodeConfig(nodeType);
+      const position = { x: event.clientX - 250, y: event.clientY - 100 };
+
+      const newNode: GraphNode = {
+        id: nanoid(),
+        type: nodeType,
+        position,
+        data: {
+          label: `${config.label} ${nodes.length + 1}`,
+          description: config.description,
+        },
+      };
+
+      addNode(newNode);
+    },
+    [addNode, nodes.length],
+  );
+
+  return (
+    <div className="h-full w-full" onDrop={onDrop} onDragOver={onDragOver}>
+      <ReactFlow
+        nodes={rfNodes}
+        edges={rfEdges}
+        nodeTypes={nodeTypes}
+        onConnect={onConnect}
+        onNodeDragStop={onNodeDragStop}
+        onNodeClick={onNodeClick}
+        onPaneClick={onPaneClick}
+        onNodesDelete={(deletedNodes) => {
+          for (const node of deletedNodes) {
+            removeNode(node.id);
+          }
+        }}
+        onEdgesDelete={(deletedEdges) => {
+          for (const edge of deletedEdges) {
+            removeEdge(edge.id);
+          }
+        }}
+        connectionMode={ConnectionMode.Loose}
+        fitView
+        className="bg-gray-50"
+      >
+        <Background
+          variant={BackgroundVariant.Dots}
+          gap={20}
+          size={1}
+          color="#e2e8f0"
+        />
+        <Controls className="!bg-white !shadow-md !rounded-lg !border !border-gray-200" />
+        <MiniMap
+          className="!bg-white !shadow-md !rounded-lg !border !border-gray-200"
+          nodeColor={(node) => {
+            const data = node.data as CustomNodeData;
+            return data?.color ?? "#94a3b8";
+          }}
+        />
+      </ReactFlow>
+    </div>
+  );
+}
+
+export function ArchitectureCanvas() {
+  return (
+    <ReactFlowProvider>
+      <ArchitectureCanvasInner />
+    </ReactFlowProvider>
+  );
+}
+
+export { NODE_PALETTE };
