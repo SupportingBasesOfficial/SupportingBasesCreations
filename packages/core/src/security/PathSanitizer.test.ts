@@ -3,32 +3,30 @@ import { PathSanitizer } from "./PathSanitizer.js";
 import { resolve } from "path";
 
 describe("PathSanitizer", () => {
+  const base = resolve("/home/user/projects");
+
   it("should allow valid paths", () => {
-    const base = "C:\\Users\\Tay\\projects";
     expect(PathSanitizer.sanitize("generated/app", base)).toBe(
       resolve(base, "generated/app"),
     );
   });
 
   it("should block path traversal", () => {
-    expect(() =>
-      PathSanitizer.sanitize("../../../etc/passwd", "C:\\Users\\Tay\\projects"),
-    ).toThrow("Path traversal blocked");
+    expect(() => PathSanitizer.sanitize("../../../etc/passwd", base)).toThrow(
+      "Path traversal blocked",
+    );
   });
 
   it("should allow absolute path without traversal", () => {
-    expect(
-      PathSanitizer.sanitize("C:/safe/path", "C:\\Users\\Tay\\projects"),
-    ).toBe(resolve("C:/safe/path"));
+    expect(PathSanitizer.sanitize("/safe/path", base)).toBe(
+      resolve("/safe/path"),
+    );
   });
 
   it("should block absolute path with traversal", () => {
-    expect(() =>
-      PathSanitizer.sanitize(
-        "C:/windows/../etc/passwd",
-        "C:\\Users\\Tay\\projects",
-      ),
-    ).toThrow("Path traversal blocked");
+    expect(() => PathSanitizer.sanitize("/safe/../etc/passwd", base)).toThrow(
+      "Path traversal blocked",
+    );
   });
 
   it("should validate project names", () => {

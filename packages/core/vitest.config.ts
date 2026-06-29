@@ -1,10 +1,16 @@
-import { defineConfig } from 'vitest/config';
+import { defineConfig } from "vitest/config";
+import { resolve } from "path";
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      "@sbc/shared": resolve(__dirname, "../../shared/types/src/index.ts"),
+    },
+  },
   test: {
     coverage: {
-      provider: 'v8',
-      reporter: ['text', 'json', 'html'],
+      provider: "v8",
+      reporter: ["text", "json", "html"],
       thresholds: {
         lines: 55,
         functions: 65,
@@ -12,10 +18,10 @@ export default defineConfig({
         statements: 55,
       },
       exclude: [
-        '**/node_modules/**',
-        '**/dist/**',
-        '**/*.test.ts',
-        '**/index.ts',
+        "**/node_modules/**",
+        "**/dist/**",
+        "**/*.test.ts",
+        "**/index.ts",
       ],
     },
   },
