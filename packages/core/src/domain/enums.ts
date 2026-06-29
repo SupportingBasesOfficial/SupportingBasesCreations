@@ -1,0 +1,171 @@
+export enum ArchitectureType {
+  MONOLITH = 'MONOLITH',
+  MICROSERVICES = 'MICROSERVICES',
+  SERVERLESS = 'SERVERLESS',
+  MODULAR_MONOLITH = 'MODULAR_MONOLITH',
+}
+
+export enum FrontendFramework {
+  NEXTJS = 'NEXTJS',
+  REACT = 'REACT',
+  VUE = 'VUE',
+  NUXT = 'NUXT',
+  ASTRO = 'ASTRO',
+  SVELTE = 'SVELTE',
+  SVELTEKIT = 'SVELTEKIT',
+}
+
+export enum BackendFramework {
+  NESTJS = 'NESTJS',
+  EXPRESS = 'EXPRESS',
+  FASTIFY = 'FASTIFY',
+  TRPC = 'TRPC',
+  GRAPHQL = 'GRAPHQL',
+  GRPC = 'GRPC',
+}
+
+export enum DatabaseType {
+  POSTGRESQL = 'POSTGRESQL',
+  MYSQL = 'MYSQL',
+  MONGODB = 'MONGODB',
+  DYNAMODB = 'DYNAMODB',
+  COCKROACHDB = 'COCKROACHDB',
+  SQLITE = 'SQLITE',
+}
+
+export enum CacheType {
+  REDIS = 'REDIS',
+  MEMCACHED = 'MEMCACHED',
+  NONE = 'NONE',
+}
+
+export enum QueueType {
+  RABBITMQ = 'RABBITMQ',
+  KAFKA = 'KAFKA',
+  SQS = 'SQS',
+  NONE = 'NONE',
+}
+
+export enum CloudProvider {
+  AWS = 'AWS',
+  GCP = 'GCP',
+  AZURE = 'AZURE',
+  DIGITAL_OCEAN = 'DIGITAL_OCEAN',
+  VERCEL = 'VERCEL',
+}
+
+export enum Containerization {
+  DOCKER = 'DOCKER',
+  PODMAN = 'PODMAN',
+  NONE = 'NONE',
+}
+
+export enum Orchestration {
+  KUBERNETES = 'KUBERNETES',
+  DOCKER_SWARM = 'DOCKER_SWARM',
+  ECS = 'ECS',
+  FARGATE = 'FARGATE',
+  NONE = 'NONE',
+}
+
+export enum StylingSystem {
+  TAILWIND = 'TAILWIND',
+  CSS_MODULES = 'CSS_MODULES',
+  STYLED_COMPONENTS = 'STYLED_COMPONENTS',
+  SCSS = 'SCSS',
+  VANILLA_EXTRACT = 'VANILLA_EXTRACT',
+}
+
+export enum ComponentSystem {
+  SHADCN = 'SHADCN',
+  MUI = 'MUI',
+  CHAKRA = 'CHAKRA',
+  ANTD = 'ANTD',
+  HEADLESS = 'HEADLESS',
+}
+
+export enum TestType {
+  UNIT = 'UNIT',
+  INTEGRATION = 'INTEGRATION',
+  E2E = 'E2E',
+  CONTRACT = 'CONTRACT',
+  PERFORMANCE = 'PERFORMANCE',
+  SECURITY = 'SECURITY',
+}
+
+export enum LinterType {
+  ESLINT = 'ESLINT',
+  PRETTIER = 'PRETTIER',
+  COMMITLINT = 'COMMITLINT',
+  STYLELINT = 'STYLELINT',
+}
+
+export enum SecurityTool {
+  DEPENDABOT = 'DEPENDABOT',
+  SNYK = 'SNYK',
+  SEMGREP = 'SEMGREP',
+  SONARQUBE = 'SONARQUBE',
+}
+
+export enum DocType {
+  API = 'API',
+  ARCHITECTURE = 'ARCHITECTURE',
+  RUNBOOK = 'RUNBOOK',
+  ADR = 'ADR',
+  README = 'README',
+}
+
+export enum FeatureFlag {
+  AUTH = 'AUTH',
+  AUTH_SSO = 'AUTH_SSO',
+  AUTH_MFA = 'AUTH_MFA',
+  BILLING = 'BILLING',
+  BILLING_USAGE_BASED = 'BILLING_USAGE_BASED',
+  MULTI_TENANT = 'MULTI_TENANT',
+  AUDIT_LOG = 'AUDIT_LOG',
+  SOFT_DELETE = 'SOFT_DELETE',
+  ANALYTICS = 'ANALYTICS',
+  NOTIFICATIONS = 'NOTIFICATIONS',
+  SEARCH = 'SEARCH',
+  CDN = 'CDN',
+  RATE_LIMITING = 'RATE_LIMITING',
+  WEBHOOKS = 'WEBHOOKS',
+  WEBSOCKETS = 'WEBSOCKETS',
+  I18N = 'I18N',
+  ACCESSIBILITY = 'ACCESSIBILITY',
+}
+
+export enum FieldType {
+  UUID = 'UUID',
+  STRING = 'STRING',
+  TEXT = 'TEXT',
+  INTEGER = 'INTEGER',
+  BIGINT = 'BIGINT',
+  DECIMAL = 'DECIMAL',
+  FLOAT = 'FLOAT',
+  BOOLEAN = 'BOOLEAN',
+  DATE = 'DATE',
+  DATETIME = 'DATETIME',
+  TIMESTAMP = 'TIMESTAMP',
+  JSON = 'JSON',
+  JSONB = 'JSONB',
+  ENUM = 'ENUM',
+  ARRAY = 'ARRAY',
+  BLOB = 'BLOB',
+  RELATION = 'RELATION',
+}
+
+export enum RelationType {
+  ONE_TO_ONE = 'ONE_TO_ONE',
+  ONE_TO_MANY = 'ONE_TO_MANY',
+  MANY_TO_ONE = 'MANY_TO_ONE',
+  MANY_TO_MANY = 'MANY_TO_MANY',
+}
+
+export enum ServiceType {
+  SYNC = 'SYNC',
+  ASYNC = 'ASYNC',
+  EVENT_DRIVEN = 'EVENT_DRIVEN',
+  BATCH = 'BATCH',
+  STREAMING = 'STREAMING',
+}

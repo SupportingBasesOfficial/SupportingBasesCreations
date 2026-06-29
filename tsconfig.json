@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "@sbc/core": ["./packages/core/src"],
+      "@sbc/core/*": ["./packages/core/src/*"],
+      "@sbc/generators": ["./packages/generators/src"],
+      "@sbc/generators/*": ["./packages/generators/src/index.ts"],
+      "@sbc/cli": ["./packages/cli/src"],
+      "@sbc/cli/*": ["./packages/cli/src/*"],
+      "@sbc/shared": ["./shared/types/src/index.ts"],
+      "@sbc/shared/*": ["./shared/types/src/*"]
+    }
+  },
+  "exclude": ["node_modules", "dist", ".next"]
+}
