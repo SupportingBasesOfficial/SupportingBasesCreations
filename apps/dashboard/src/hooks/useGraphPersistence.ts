@@ -1,19 +1,23 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useGraphStore } from "../store/graphStore";
 import type { ArchitectureGraph } from "@sbc/shared";
 
 const STORAGE_KEY = "sbc-architecture-graph";
+const AUTOSAVE_INTERVAL = 30_000;
 
 export function useGraphPersistence() {
   const loadGraph = useGraphStore((s) => s.loadGraph);
   const getGraph = useGraphStore((s) => s.getGraph);
+  const saveRef = useRef<() => void>(() => {});
 
   const save = useCallback(() => {
     const graph = getGraph();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(graph));
   }, [getGraph]);
+
+  saveRef.current = save;
 
   const load = useCallback((): boolean => {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -48,6 +52,13 @@ export function useGraphPersistence() {
     },
     [loadGraph],
   );
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      saveRef.current();
+    }, AUTOSAVE_INTERVAL);
+    return () => clearInterval(interval);
+  }, []);
 
   return { save, load, clear, exportJson, importJson };
 }

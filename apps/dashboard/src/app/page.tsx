@@ -7,6 +7,9 @@ import { NodeInspector } from "../components/flow/panels/NodeInspector";
 import { ValidationPanel } from "../components/flow/panels/ValidationPanel";
 import { DeployButton } from "../components/flow/controls/DeployButton";
 import { CanvasToolbar } from "../components/flow/controls/CanvasToolbar";
+import { CanvasContextMenu } from "../components/flow/controls/CanvasContextMenu";
+import { TemplatesGallery } from "../components/flow/controls/TemplatesGallery";
+import { ExportZipButton } from "../components/flow/controls/ExportZipButton";
 import { PresenceAvatars } from "../components/collaboration/PresenceAvatars";
 import { ShareDialog } from "../components/collaboration/ShareDialog";
 import { LiveCursors } from "../components/collaboration/LiveCursors";
@@ -164,6 +167,7 @@ export default function DashboardPage() {
               {roomId && <PresenceAvatars roomId={roomId} />}
             </Suspense>
             <div className="h-6 w-px bg-gray-200 dark:bg-gray-700" />
+            <TemplatesGallery />
             <ShareDialog />
             <ThemeToggle />
             <button
@@ -177,6 +181,7 @@ export default function DashboardPage() {
               <Cloud size={16} />
               {cloudConfig ? "Connected" : "Cloud Setup"}
             </button>
+            <ExportZipButton />
             <DeployButton />
           </div>
         </header>
@@ -193,6 +198,7 @@ export default function DashboardPage() {
                 <ArchitectureCanvas />
                 {roomId && <LiveCursors roomId={roomId} />}
                 <ValidationPanel />
+                <CanvasContextMenu />
               </>
             )}
           </div>

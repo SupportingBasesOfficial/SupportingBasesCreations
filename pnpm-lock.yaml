@@ -67,6 +67,9 @@ importers:
       react-dom:
         specifier: ^18.3.0
         version: 18.3.1(react@18.3.1)
+      web-vitals:
+        specifier: ^4.2.4
+        version: 4.2.4
       y-indexeddb:
         specifier: ^9.0.0
         version: 9.0.12(yjs@13.6.31)
@@ -91,7 +94,7 @@ importers:
         version: 8.6.14(storybook@8.6.18(prettier@3.9.1))
       "@storybook/nextjs":
         specifier: ^8.3.0
-        version: 8.6.18(esbuild@0.21.5)(next@14.2.5(@babel/core@7.29.7)(@playwright/test@1.61.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(storybook@8.6.18(prettier@3.9.1))(type-fest@0.20.2)(typescript@5.9.3)(webpack-hot-middleware@2.26.1)(webpack@5.108.3(esbuild@0.21.5)(postcss@8.5.16))
+        version: 8.6.18(esbuild@0.21.5)(next@14.2.5(@babel/core@7.29.7)(@playwright/test@1.61.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(storybook@8.6.18(prettier@3.9.1))(type-fest@2.19.0)(typescript@5.9.3)(webpack-hot-middleware@2.26.1)(webpack@5.108.3(esbuild@0.21.5)(postcss@8.5.16))
       "@storybook/react":
         specifier: ^8.3.0
         version: 8.6.18(@storybook/test@8.6.18(storybook@8.6.18(prettier@3.9.1)))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(storybook@8.6.18(prettier@3.9.1))(typescript@5.9.3)
@@ -7533,6 +7536,12 @@ packages:
       }
     engines: { node: ">=10.13.0" }
 
+  web-vitals@4.2.4:
+    resolution:
+      {
+        integrity: sha512-r4DIlprAGwJ7YM11VZp4R884m0Vmgr6EAKe3P+kO0PPj3Unqyvv59rczf6UiGcb9Z8QxZVcqKNwv/g0WNdWwsw==,
+      }
+
   webidl-conversions@7.0.0:
     resolution:
       {
@@ -8848,7 +8857,7 @@ snapshots:
     dependencies:
       playwright: 1.61.1
 
-  "@pmmmwh/react-refresh-webpack-plugin@0.5.17(react-refresh@0.14.2)(type-fest@0.20.2)(webpack-hot-middleware@2.26.1)(webpack@5.108.3(esbuild@0.21.5)(postcss@8.5.16))":
+  "@pmmmwh/react-refresh-webpack-plugin@0.5.17(react-refresh@0.14.2)(type-fest@2.19.0)(webpack-hot-middleware@2.26.1)(webpack@5.108.3(esbuild@0.21.5)(postcss@8.5.16))":
     dependencies:
       ansi-html: 0.0.9
       core-js-pure: 3.49.0
@@ -8860,7 +8869,7 @@ snapshots:
       source-map: 0.7.6
       webpack: 5.108.3(esbuild@0.21.5)(postcss@8.5.16)
     optionalDependencies:
-      type-fest: 0.20.2
+      type-fest: 2.19.0
       webpack-hot-middleware: 2.26.1
 
   "@rollup/rollup-android-arm-eabi@4.62.2":
@@ -9139,7 +9148,7 @@ snapshots:
     dependencies:
       storybook: 8.6.18(prettier@3.9.1)
 
-  "@storybook/nextjs@8.6.18(esbuild@0.21.5)(next@14.2.5(@babel/core@7.29.7)(@playwright/test@1.61.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(storybook@8.6.18(prettier@3.9.1))(type-fest@0.20.2)(typescript@5.9.3)(webpack-hot-middleware@2.26.1)(webpack@5.108.3(esbuild@0.21.5)(postcss@8.5.16))":
+  "@storybook/nextjs@8.6.18(esbuild@0.21.5)(next@14.2.5(@babel/core@7.29.7)(@playwright/test@1.61.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(storybook@8.6.18(prettier@3.9.1))(type-fest@2.19.0)(typescript@5.9.3)(webpack-hot-middleware@2.26.1)(webpack@5.108.3(esbuild@0.21.5)(postcss@8.5.16))":
     dependencies:
       "@babel/core": 7.29.7
       "@babel/plugin-syntax-bigint": 7.8.3(@babel/core@7.29.7)
@@ -9154,7 +9163,7 @@ snapshots:
       "@babel/preset-react": 7.29.7(@babel/core@7.29.7)
       "@babel/preset-typescript": 7.29.7(@babel/core@7.29.7)
       "@babel/runtime": 7.29.7
-      "@pmmmwh/react-refresh-webpack-plugin": 0.5.17(react-refresh@0.14.2)(type-fest@0.20.2)(webpack-hot-middleware@2.26.1)(webpack@5.108.3(esbuild@0.21.5)(postcss@8.5.16))
+      "@pmmmwh/react-refresh-webpack-plugin": 0.5.17(react-refresh@0.14.2)(type-fest@2.19.0)(webpack-hot-middleware@2.26.1)(webpack@5.108.3(esbuild@0.21.5)(postcss@8.5.16))
       "@storybook/builder-webpack5": 8.6.18(esbuild@0.21.5)(postcss@8.5.16)(storybook@8.6.18(prettier@3.9.1))(typescript@5.9.3)
       "@storybook/preset-react-webpack": 8.6.18(@storybook/test@8.6.18(storybook@8.6.18(prettier@3.9.1)))(esbuild@0.21.5)(postcss@8.5.16)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(storybook@8.6.18(prettier@3.9.1))(typescript@5.9.3)
       "@storybook/react": 8.6.18(@storybook/test@8.6.18(storybook@8.6.18(prettier@3.9.1)))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(storybook@8.6.18(prettier@3.9.1))(typescript@5.9.3)
@@ -12559,6 +12568,8 @@ snapshots:
   watchpack@2.5.2:
     dependencies:
       graceful-fs: 4.2.11
+
+  web-vitals@4.2.4: {}
 
   webidl-conversions@7.0.0: {}
 

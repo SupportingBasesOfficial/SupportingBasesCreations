@@ -1,46 +1,86 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import { NODE_PALETTE } from "../nodes/NodePalette";
 import { NodeType } from "@sbc/shared";
 import type { DragEvent } from "react";
+import { Search } from "lucide-react";
 
 export function NodePaletteSidebar() {
+  const [query, setQuery] = useState("");
+
   const onDragStart = (event: DragEvent, nodeType: NodeType) => {
     event.dataTransfer.setData("application/nodeType", nodeType);
     event.dataTransfer.effectAllowed = "move";
   };
 
+  const filtered = useMemo(() => {
+    if (!query.trim()) return NODE_PALETTE;
+    const q = query.toLowerCase();
+    return NODE_PALETTE.filter(
+      (item) =>
+        item.label.toLowerCase().includes(q) ||
+        item.description.toLowerCase().includes(q) ||
+        item.type.toLowerCase().includes(q),
+    );
+  }, [query]);
+
   return (
-    <div className="flex h-full w-56 flex-col border-r border-gray-200 bg-white">
-      <div className="border-b border-gray-200 px-4 py-3">
-        <h3 className="text-sm font-semibold text-gray-700">Components</h3>
-        <p className="mt-0.5 text-xs text-gray-400">Drag to canvas</p>
+    <div className="flex h-full w-56 flex-col border-r border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+      <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-800">
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+          Components
+        </h3>
+        <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
+          Drag to canvas
+        </p>
+      </div>
+      <div className="border-b border-gray-200 p-3 dark:border-gray-800">
+        <div className="relative">
+          <Search
+            size={14}
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"
+          />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search components..."
+            className="w-full rounded-md border border-gray-200 bg-gray-50 py-1.5 pl-8 pr-3 text-sm text-gray-700 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:placeholder-gray-500"
+          />
+        </div>
       </div>
       <div className="flex-1 overflow-y-auto p-3">
-        <div className="space-y-2">
-          {NODE_PALETTE.map((item) => (
-            <div
-              key={item.type}
-              draggable
-              onDragStart={(e) => onDragStart(e, item.type)}
-              className="flex cursor-grab items-center gap-3 rounded-lg border border-gray-200 px-3 py-2.5 transition-all hover:border-gray-300 hover:shadow-sm active:cursor-grabbing"
-            >
-              <span className="text-xl">{item.icon}</span>
-              <div className="flex-1">
-                <div className="text-sm font-medium text-gray-700">
-                  {item.label}
-                </div>
-                <div className="text-xs text-gray-400 truncate">
-                  {item.description}
-                </div>
-              </div>
+        {filtered.length === 0 ? (
+          <p className="py-4 text-center text-xs text-gray-400 dark:text-gray-500">
+            No components found
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {filtered.map((item) => (
               <div
-                className="h-2 w-2 rounded-full"
-                style={{ backgroundColor: item.color }}
-              />
-            </div>
-          ))}
-        </div>
+                key={item.type}
+                draggable
+                onDragStart={(e) => onDragStart(e, item.type)}
+                className="flex cursor-grab items-center gap-3 rounded-lg border border-gray-200 px-3 py-2.5 transition-all hover:border-gray-300 hover:shadow-sm active:cursor-grabbing dark:border-gray-700 dark:hover:border-gray-600 dark:hover:shadow-md"
+              >
+                <span className="text-xl">{item.icon}</span>
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                    {item.label}
+                  </div>
+                  <div className="text-xs text-gray-400 truncate dark:text-gray-500">
+                    {item.description}
+                  </div>
+                </div>
+                <div
+                  className="h-2 w-2 rounded-full"
+                  style={{ backgroundColor: item.color }}
+                />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

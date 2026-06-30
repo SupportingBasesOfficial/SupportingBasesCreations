@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { WebVitals } from "../components/WebVitals";
 
 export const metadata: Metadata = {
   title: "SBC Dashboard",
@@ -44,7 +45,10 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <script dangerouslySetInnerHTML={{ __html: swScript }} />
       </head>
-      <body className="min-h-screen">{children}</body>
+      <body className="min-h-screen">
+        <WebVitals />
+        {children}
+      </body>
     </html>
   );
 }

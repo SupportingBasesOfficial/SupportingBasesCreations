@@ -11,7 +11,38 @@ import type { CloudConfig, DeployProgress } from "@sbc/shared";
 
 export const maxDuration = 300;
 
+const RATE_LIMIT_WINDOW = 60_000;
+const RATE_LIMIT_MAX = 5;
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW });
+    return true;
+  }
+  if (entry.count >= RATE_LIMIT_MAX) return false;
+  entry.count++;
+  return true;
+}
+
 export async function POST(request: NextRequest) {
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  if (!checkRateLimit(ip)) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Rate limit exceeded. Maximum 5 deploys per minute.",
+      },
+      {
+        status: 429,
+        headers: { "Retry-After": "60" },
+      },
+    );
+  }
+
   try {
     const body = await request.json();
     const { projectName, config, graph } = body as {
