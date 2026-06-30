@@ -1,0 +1,12 @@
+node_modules
+dist
+.next
+build
+coverage
+**/*.stories.tsx
+**/*.test.ts
+**/*.test.tsx
+e2e
+playwright.config.ts
+apps/dashboard/public/sw.js
+apps/dashboard/.storybook
