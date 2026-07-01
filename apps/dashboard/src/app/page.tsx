@@ -47,15 +47,19 @@ export default function DashboardPage() {
     load();
     setIsLoading(false);
 
-    const stored = localStorage.getItem("sbc-cloud-config");
-    if (stored) {
+    // Load cloud config from server
+    async function loadCloudConfig() {
       try {
-        const config = JSON.parse(stored);
-        useDeployStore.getState().setCloudConfig(config);
+        const res = await fetch("/api/cloud-config");
+        const data = await res.json();
+        if (data?.cloud_config) {
+          useDeployStore.getState().setCloudConfig(data.cloud_config);
+        }
       } catch {
-        // ignore
+        // offline
       }
     }
+    loadCloudConfig();
   }, [load]);
 
   useEffect(() => {
@@ -86,7 +90,7 @@ export default function DashboardPage() {
       } else if ((e.ctrlKey || e.metaKey) && e.key === "s") {
         e.preventDefault();
         saveRef.current();
-        toast.success("Graph saved to localStorage");
+        toast.success("Graph saved to cloud");
       } else if (e.key === "Delete" && !isInput) {
         e.preventDefault();
         const state = useGraphStore.getState();

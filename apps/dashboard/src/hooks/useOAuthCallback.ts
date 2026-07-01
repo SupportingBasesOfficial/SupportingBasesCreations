@@ -20,12 +20,21 @@ export function useOAuthCallback() {
     const error = params.get("oauth_error");
     const token = params.get("token");
 
-    if (success && token) {
+    async function handleOAuthSuccess() {
+      if (!success || !token) return;
       const provider = success as "github" | "vercel" | "supabase";
       setOauthStatus({ provider, success: true });
 
-      const stored = localStorage.getItem("sbc-cloud-config");
-      const existing: Partial<CloudConfig> = stored ? JSON.parse(stored) : {};
+      let existing: Partial<CloudConfig> = {};
+      try {
+        const res = await fetch("/api/cloud-config");
+        const data = await res.json();
+        if (data?.cloud_config) {
+          existing = data.cloud_config as Partial<CloudConfig>;
+        }
+      } catch {
+        // offline fallback
+      }
 
       const config: CloudConfig = {
         github: existing.github ?? { token: "", owner: "" },
@@ -41,10 +50,23 @@ export function useOAuthCallback() {
       } as CloudConfig;
 
       setCloudConfig(config);
-      localStorage.setItem("sbc-cloud-config", JSON.stringify(config));
+
+      try {
+        await fetch("/api/cloud-config", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cloud_config: config }),
+        });
+      } catch {
+        // offline — will sync later
+      }
 
       const cleanUrl = window.location.pathname;
       window.history.replaceState({}, "", cleanUrl);
+    }
+
+    if (success && token) {
+      handleOAuthSuccess();
     }
 
     if (error) {

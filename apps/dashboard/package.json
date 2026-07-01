@@ -17,6 +17,7 @@
     "@sbc/core": "workspace:*",
     "@sbc/generators": "workspace:*",
     "@sbc/shared": "workspace:*",
+    "@supabase/supabase-js": "^2.110.0",
     "@xyflow/react": "^12.0.0",
     "lucide-react": "^0.400.0",
     "nanoid": "^5.0.0",

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Cloud, KeyRound, Check, Loader2, ExternalLink } from "lucide-react";
 import { useDeployStore } from "../store/deployStore";
-import type { CloudConfig, OAuthToken } from "@sbc/shared";
+import type { CloudConfig } from "@sbc/shared";
 
 type ProviderId = "github" | "vercel" | "supabase";
 
@@ -69,31 +69,35 @@ export function CloudSettingsModal({
   }, [cloudConfig, open]);
 
   useEffect(() => {
-    const stored = localStorage.getItem("sbc-oauth-tokens");
-    if (stored) {
+    async function loadCloudConfig() {
       try {
-        const tokens = JSON.parse(stored) as Record<ProviderId, OAuthToken>;
-        setProviders((prev) => ({
-          github: {
-            ...prev.github,
-            connected: !!tokens.github?.accessToken,
-            token: tokens.github?.accessToken ?? "",
-          },
-          vercel: {
-            ...prev.vercel,
-            connected: !!tokens.vercel?.accessToken,
-            token: tokens.vercel?.accessToken ?? "",
-          },
-          supabase: {
-            ...prev.supabase,
-            connected: !!tokens.supabase?.accessToken,
-            token: tokens.supabase?.accessToken ?? "",
-          },
-        }));
+        const res = await fetch("/api/cloud-config");
+        const data = await res.json();
+        if (data?.cloud_config) {
+          const cfg = data.cloud_config as CloudConfig;
+          setProviders({
+            github: {
+              connected: !!cfg.github?.token,
+              token: cfg.github?.token ?? "",
+              owner: cfg.github?.owner ?? "",
+            },
+            vercel: {
+              connected: !!cfg.vercel?.token,
+              token: cfg.vercel?.token ?? "",
+              owner: cfg.vercel?.teamId ?? "",
+            },
+            supabase: {
+              connected: !!cfg.supabase?.token,
+              token: cfg.supabase?.token ?? "",
+              owner: cfg.supabase?.organizationId ?? "",
+            },
+          });
+        }
       } catch {
-        // ignore
+        // offline
       }
     }
+    loadCloudConfig();
   }, []);
 
   const handleOAuthConnect = async (provider: ProviderId) => {
@@ -115,7 +119,7 @@ export function CloudSettingsModal({
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setSaving(true);
     const config: CloudConfig = {
       github: {
@@ -132,7 +136,15 @@ export function CloudSettingsModal({
       },
     };
     setCloudConfig(config);
-    localStorage.setItem("sbc-cloud-config", JSON.stringify(config));
+    try {
+      await fetch("/api/cloud-config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cloud_config: config }),
+      });
+    } catch {
+      // offline
+    }
     setSaving(false);
     onClose();
   };

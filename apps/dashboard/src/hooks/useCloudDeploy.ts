@@ -79,7 +79,6 @@ export function useCloudDeploy() {
 
         const generationResult = await engine.generate({
           project,
-          outputDir: "./generated",
         });
 
         if (!generationResult.success && generationResult.errors.length > 0) {
