@@ -16,3 +16,4 @@ export * from "./security/SecureMemoryVault.js";
 export * from "./io/CloudGitWriter.js";
 export * from "./collaboration/index.js";
 export * from "./pipeline/index.js";
+export * from "./cloud/index.js";

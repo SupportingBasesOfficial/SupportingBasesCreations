@@ -1,9 +1,6 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
-import { mkdir, writeFile } from "fs/promises";
-import { join } from "path";
-import ora from "ora";
 import {
   Project,
   Entity,
@@ -25,6 +22,8 @@ import {
   LockFile,
   StructuredLogger,
 } from "@sbc/core";
+import type { CloudKV, CloudStorage } from "@sbc/core";
+import { UpstashRedisKV, VercelBlobStorage } from "@sbc/core";
 import { projectNameSchema, projectOptionsSchema } from "@sbc/core";
 import {
   PrismaGenerator,
@@ -32,6 +31,9 @@ import {
   NextJSGenerator,
   DockerGenerator,
   EnvGenerator,
+  VercelDeployGenerator,
+  SupabaseSetupGenerator,
+  CloudEnvGenerator,
   AuthGenerator,
   FeatureFlagGenerator,
   TestGenerator,
@@ -43,25 +45,44 @@ import {
   EventDrivenGenerator,
   MultiTenancyGenerator,
   SecurityAuditGenerator,
+  SecurityHardeningGenerator,
+  EncryptionGenerator,
+  SecurityChaosGenerator,
+  ThreatIntelligenceGenerator,
+  ConfidentialComputingGenerator,
+  SIEMGenerator,
 } from "@sbc/generators";
 import {
   autoFixProjectName,
-  findConfigFile,
   computeDiff,
-  writeAuditLog,
   validateGeneratedTypeScript,
-  loadConfigFile,
   buildProjectFromConfig,
-  runPreflightChecks,
-  ensureGitignoreEnv,
   getErrorGuide,
   CURRENT_SCHEMA_VERSION,
   checkForUpdates,
 } from "./cliUtils.js";
 
 const program = new Command();
-const rateLimiter = new RateLimiter({ windowMs: 60_000, maxRequests: 10 });
-const health = new HealthChecker();
+
+let cloudKV: CloudKV | undefined;
+let cloudStorage: CloudStorage | undefined;
+
+function initCloudServices(): void {
+  const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
+  const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (redisUrl && redisToken) {
+    cloudKV = new UpstashRedisKV({ url: redisUrl, token: redisToken });
+  }
+  const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
+  if (blobToken) {
+    cloudStorage = new VercelBlobStorage({ token: blobToken });
+  }
+}
+
+initCloudServices();
+
+const rateLimiter = new RateLimiter({ windowMs: 60_000, maxRequests: 10 }, cloudKV);
+const health = new HealthChecker({ kv: cloudKV });
 const logger = new StructuredLogger("cli");
 
 let activeWriter: TransactionalWriter | undefined;
@@ -103,27 +124,25 @@ function isGeneratorEnabled(name: string): boolean {
 program
   .command("generate")
   .description("Generate a project from configuration")
-  .option("-c, --config <path>", "Configuration file path")
-  .option("-o, --output <dir>", "Output directory", "./generated")
+  .option("-c, --config <json>", "Configuration JSON string (cloud mode)")
+  .option("-o, --output <prefix>", "Output prefix for cloud storage", "generated")
   .option("-n, --name <name>", "Project name")
   .option("--dry-run", "Run without writing files")
-  .option("--force", "Overwrite existing output directory")
   .action(
     async (options: {
       name?: string;
       output: string;
       config?: string;
       dryRun?: boolean;
-      force?: boolean;
     }) => {
-      const clientKey = `cli-${process.pid}`;
-      if (!rateLimiter.allow(clientKey)) {
+      const clientKey = `cli-${process.env.SBC_CLIENT_ID ?? "default"}`;
+      if (!(await rateLimiter.allow(clientKey))) {
         logger.error("Rate limit exceeded. Try again in a minute.");
         process.exit(1);
       }
 
-      logger.info("SBC Enterprise Generator v1.0.0");
-      logger.info("=================================");
+      logger.info("SBC Enterprise Generator v1.0.0 (Cloud Mode)");
+      logger.info("==============================================");
 
       // Health check
       const healthResult = await health.check();
@@ -138,31 +157,19 @@ program
       }
 
       let project: Project;
-      let resolvedConfigPath: string | undefined = options.config;
 
-      // Auto-detect config file if not explicitly provided
-      if (!resolvedConfigPath && !options.name) {
-        resolvedConfigPath = await findConfigFile(process.cwd());
-        if (resolvedConfigPath) {
-          logger.info(`Auto-detected config: ${resolvedConfigPath}`);
-        }
-      }
-
-      if (resolvedConfigPath) {
+      if (options.config) {
         try {
-          const rawConfig = await loadConfigFile(resolvedConfigPath);
-
-          // Schema version check
+          const rawConfig = JSON.parse(options.config) as Record<string, unknown>;
           const configVersion =
             (rawConfig as any).schemaVersion ??
             (rawConfig as any).version ??
             "1.0";
           if (configVersion !== CURRENT_SCHEMA_VERSION) {
             logger.warn(
-              `Config schema version mismatch: ${configVersion} (expected ${CURRENT_SCHEMA_VERSION}). May need migration.`,
+              `Config schema version mismatch: ${configVersion} (expected ${CURRENT_SCHEMA_VERSION}).`,
             );
           }
-
           const merged = {
             ...rawConfig,
             ...(options.name ? { name: options.name } : {}),
@@ -170,14 +177,14 @@ program
           project = buildProjectFromConfig(merged);
         } catch (err) {
           logger.error(
-            `Failed to load config: ${err instanceof Error ? err.message : String(err)}`,
+            `Failed to parse config: ${err instanceof Error ? err.message : String(err)}`,
           );
           process.exit(1);
         }
       } else {
         if (!options.name) {
           logger.error(
-            "Project name is required. Use -n <name> or -c <config>, or create sbc.config.json",
+            "Project name is required. Use -n <name> or -c <json-config>.",
           );
           process.exit(1);
         }
@@ -251,22 +258,13 @@ program
         process.exit(1);
       }
 
-      // Sanitize output path
-      let outputDir: string;
+      // Sanitize output prefix for cloud storage
+      let outputPrefix: string;
       try {
-        outputDir = PathSanitizer.sanitize(options.output, process.cwd());
+        outputPrefix = PathSanitizer.sanitize(options.output, "/");
       } catch (err) {
         logger.error(
           `Invalid output path: ${err instanceof Error ? err.message : String(err)}`,
-        );
-        process.exit(1);
-      }
-
-      try {
-        await runPreflightChecks(outputDir, options.force ?? false);
-      } catch (preflightErr) {
-        logger.error(
-          `Preflight check failed: ${preflightErr instanceof Error ? preflightErr.message : String(preflightErr)}`,
         );
         process.exit(1);
       }
@@ -276,16 +274,22 @@ program
       logger.info(`Entities: ${project.options.entities.length}`);
       logger.info(`Services: ${project.options.services.length}`);
       logger.info(`Dependencies: ${project.dependencies().join(", ")}`);
-      logger.info(`Output: ${outputDir}`);
+      logger.info(`Output prefix: ${outputPrefix}`);
       logger.info(`Dry run: ${options.dryRun ?? false}`);
+      logger.info(`Cloud storage: ${cloudStorage ? "enabled" : "disabled"}`);
 
       const registry = new GeneratorRegistry();
-      const generators = [
+
+      // --- Base generators (always enabled) ---
+      const baseGenerators = [
         new PrismaGenerator(),
         new TRPCGenerator(),
         new NextJSGenerator(),
         new DockerGenerator(),
         new EnvGenerator(),
+        new VercelDeployGenerator(),
+        new SupabaseSetupGenerator(),
+        new CloudEnvGenerator(),
         new AuthGenerator(),
         new FeatureFlagGenerator(),
         new TestGenerator(),
@@ -296,8 +300,47 @@ program
         new ObservabilityStackGenerator(),
         new EventDrivenGenerator(),
         new MultiTenancyGenerator(),
-        new SecurityAuditGenerator(),
       ];
+
+      // --- Security: Base tier (always on) ---
+      const securityBaseGenerators = [
+        new SecurityAuditGenerator(),
+        new SecurityHardeningGenerator(),
+      ];
+
+      // --- Security: Pro tier (opt-in via SBC_SECURITY_TIER=pro or enterprise) ---
+      const securityProGenerators = [
+        new EncryptionGenerator(),
+        new SIEMGenerator(),
+      ];
+
+      // --- Security: Enterprise tier (opt-in via SBC_SECURITY_TIER=enterprise) ---
+      const securityEnterpriseGenerators = [
+        new SecurityChaosGenerator(),
+        new ThreatIntelligenceGenerator(),
+        new ConfidentialComputingGenerator(),
+      ];
+
+      // Determine security tier
+      const securityTier = process.env.SBC_SECURITY_TIER ?? "base";
+      const isProTier = securityTier === "pro" || securityTier === "enterprise";
+      const isEnterpriseTier = securityTier === "enterprise";
+
+      const generators = [
+        ...baseGenerators,
+        ...securityBaseGenerators,
+        ...(isProTier ? securityProGenerators : []),
+        ...(isEnterpriseTier ? securityEnterpriseGenerators : []),
+      ];
+
+      // Log tier info
+      logger.info(`Security tier: ${securityTier}`);
+      if (!isProTier) {
+        logger.info(`  [disabled] encryption, siem (set SBC_SECURITY_TIER=pro to enable)`);
+      }
+      if (!isEnterpriseTier) {
+        logger.info(`  [disabled] security-chaos, threat-intel, confidential-computing (set SBC_SECURITY_TIER=enterprise to enable)`);
+      }
 
       for (const gen of generators) {
         if (isGeneratorEnabled(gen.name)) {
@@ -313,7 +356,7 @@ program
         failFast: process.env.SBC_GENERATOR_FAIL_FAST === "1",
       });
 
-      const lock = new LockFile(outputDir);
+      const lock = new LockFile(outputPrefix, cloudKV);
       try {
         await lock.acquire();
       } catch (lockErr) {
@@ -323,16 +366,16 @@ program
         process.exit(1);
       }
 
-      const spinner = ora("Generating project...").start();
+      logger.info("Generating project...");
       let result;
       try {
         result = await engine.generate({
           project,
-          outputDir,
+          outputDir: outputPrefix,
         });
-        spinner.succeed("Generation complete");
+        logger.info("Generation complete");
       } catch (fatalErr) {
-        spinner.fail("Generation failed");
+        logger.error("Generation failed");
         throw fatalErr;
       } finally {
         await lock.release();
@@ -340,7 +383,7 @@ program
 
       if (result.success) {
         if (options.dryRun) {
-          const diffs = await computeDiff(outputDir, result.artifacts);
+          const diffs = await computeDiff(outputPrefix, result.artifacts);
           const added = diffs.filter((d) => d.status === "added").length;
           const modified = diffs.filter((d) => d.status === "modified").length;
           const unchanged = diffs.filter(
@@ -359,8 +402,8 @@ program
               });
           }
         } else {
-          const writeSpinner = ora("Writing files...").start();
-          activeWriter = new TransactionalWriter(outputDir);
+          logger.info("Writing artifacts to cloud storage...");
+          activeWriter = new TransactionalWriter(outputPrefix, 500, cloudStorage, cloudKV);
           await activeWriter.initialize();
           try {
             for (const artifact of result.artifacts) {
@@ -370,9 +413,9 @@ program
               });
             }
             await activeWriter.commit();
-            writeSpinner.succeed("Files written");
+            logger.info("Artifacts written to cloud storage");
           } catch (writeErr) {
-            writeSpinner.fail("Write failed");
+            logger.error("Write failed");
             await activeWriter.rollback();
             logger.error(
               `\nWrite failed: ${writeErr instanceof Error ? writeErr.message : String(writeErr)}`,
@@ -382,39 +425,35 @@ program
             activeWriter = undefined;
           }
 
-          // Protect secrets: ensure .env is in .gitignore
-          const hasEnvFiles = result.artifacts.some((a) =>
-            a.path.startsWith(".env"),
-          );
-          if (hasEnvFiles) {
-            const added = await ensureGitignoreEnv(outputDir);
-            if (added) {
-              logger.warn(
-                "\n[SECURITY] .env files detected. Added .env* to .gitignore to prevent secret leakage.",
-              );
+          // Post-generation validation (in-memory TypeScript check)
+          if (result.artifacts.length > 0) {
+            const validateResult = await validateGeneratedTypeScript(result.artifacts);
+            if (validateResult.valid) {
+              logger.info("Generated code is valid");
+            } else {
+              logger.warn("Generated code has TypeScript errors");
+              validateResult.errors.forEach((err) => logger.warn(`  ${err}`));
             }
           }
 
-          // Post-generation validation
-          const validateSpinner = ora("Validating generated code...").start();
-          const validation = await validateGeneratedTypeScript(outputDir);
-          if (validation.valid) {
-            validateSpinner.succeed("Generated code is valid");
-          } else {
-            validateSpinner.warn("Generated code has TypeScript errors");
-            validation.errors.forEach((err) => logger.warn(`  ${err}`));
+          // Audit log to cloud KV
+          if (cloudKV) {
+            try {
+              const auditKey = `audit:${project.name}:${Date.now()}`;
+              await cloudKV.set(auditKey, JSON.stringify({
+                projectName: project.name,
+                architecture: project.options.architecture,
+                entities: project.options.entities.length,
+                artifactsGenerated: result.metadata.artifactsGenerated,
+                durationMs: result.metadata.duration,
+                generators: result.metadata.phases,
+                dryRun: false,
+                timestamp: new Date().toISOString(),
+              }), 86400 * 30);
+            } catch {
+              // ignore audit write errors
+            }
           }
-
-          // Audit log
-          await writeAuditLog(outputDir, {
-            projectName: project.name,
-            architecture: project.options.architecture,
-            entities: project.options.entities.length,
-            artifactsGenerated: result.metadata.artifactsGenerated,
-            durationMs: result.metadata.duration,
-            generators: result.metadata.phases,
-            dryRun: false,
-          });
         }
 
         logger.info(
@@ -434,16 +473,11 @@ program
           });
         }
 
-        if (!options.dryRun) {
-          // Persist metrics
+        // Persist metrics to cloud KV instead of local filesystem
+        if (!options.dryRun && cloudKV) {
           try {
-            const metricsDir = join(outputDir, ".sbc");
-            await mkdir(metricsDir, { recursive: true });
-            await writeFile(
-              join(metricsDir, "metrics.json"),
-              engine.metrics.toJSON(),
-              "utf-8",
-            );
+            const metricsKey = `metrics:${project.name}:${Date.now()}`;
+            await cloudKV.set(metricsKey, engine.metrics.toJSON(), 86400 * 7);
           } catch {
             // ignore metrics write errors
           }
@@ -487,12 +521,17 @@ program
 program
   .command("validate")
   .description("Validate a project configuration")
-  .option("-c, --config <path>", "Configuration file path", "sbc.config.json")
-  .action(async (options: { config: string }) => {
+  .option("-c, --config <json>", "Configuration JSON string")
+  .action(async (options: { config?: string }) => {
     logger.info("Validating project configuration...");
 
+    if (!options.config) {
+      logger.error("Config JSON is required. Use -c <json-config>.");
+      process.exit(1);
+    }
+
     try {
-      const rawConfig = await loadConfigFile(options.config);
+      const rawConfig = JSON.parse(options.config) as Record<string, unknown>;
       const nameValidation = projectNameSchema.safeParse(
         (rawConfig as any).name ?? "",
       );
@@ -517,7 +556,7 @@ program
 
 program
   .command("health")
-  .description("Check system health")
+  .description("Check system health and cloud connectivity")
   .action(async () => {
     const result = await health.check();
     logger.info(`Status: ${result.status}`);
@@ -525,7 +564,87 @@ program
       const icon = c.status === "pass" ? "✓" : c.status === "warn" ? "⚠" : "✗";
       logger.info(`  ${icon} ${c.name}: ${c.message ?? c.status}`);
     });
+
+    // Cloud connectivity checks
+    logger.info("\nCloud Services:");
+    const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
+    const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+    if (redisUrl && redisToken) {
+      try {
+        const res = await fetch(`${redisUrl}/ping`, {
+          headers: { Authorization: `Bearer ${redisToken}` },
+          signal: AbortSignal.timeout(3000),
+        });
+        logger.info(`  ${res.ok ? "✓" : "✗"} Upstash Redis: ${res.ok ? "connected" : "error"}`);
+      } catch {
+        logger.info(`  ✗ Upstash Redis: unreachable`);
+      }
+    } else {
+      logger.info(`  ⚠ Upstash Redis: not configured`);
+    }
+
+    const qstashToken = process.env.QSTASH_TOKEN;
+    if (qstashToken) {
+      try {
+        const res = await fetch("https://qstash.upstash.io/v2/queues", {
+          headers: { Authorization: `Bearer ${qstashToken}` },
+          signal: AbortSignal.timeout(3000),
+        });
+        logger.info(`  ${res.ok ? "✓" : "✗"} QStash: ${res.ok ? "connected" : "error"}`);
+      } catch {
+        logger.info(`  ✗ QStash: unreachable`);
+      }
+    } else {
+      logger.info(`  ⚠ QStash: not configured`);
+    }
+
+    const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
+    if (blobToken) {
+      logger.info(`  ✓ Vercel Blob: token configured`);
+    } else {
+      logger.info(`  ⚠ Vercel Blob: not configured`);
+    }
+
     if (result.status === "unhealthy") process.exit(1);
+  });
+
+program
+  .command("init")
+  .description("Create a starter configuration file")
+  .option("-n, --name <name>", "Project name", "my-app")
+  .option("-o, --output <file>", "Output file", "sbc.config.json")
+  .action((options) => {
+    const config = {
+      name: options.name,
+      architecture: "MODULAR_MONOLITH",
+      entities: [
+        {
+          name: "User",
+          fields: [
+            { name: "id", type: "UUID", options: {} },
+            { name: "email", type: "STRING", options: { unique: true } },
+            { name: "name", type: "STRING", options: {} },
+            { name: "createdAt", type: "TIMESTAMP", options: {} },
+          ],
+          options: { audited: true, softDelete: true },
+        },
+      ],
+      services: [],
+      providers: [],
+      infrastructure: {
+        cloud: "VERCEL",
+        containerization: "NONE",
+        orchestration: "NONE",
+        database: "POSTGRESQL",
+        cache: "REDIS",
+        queue: "NONE",
+      },
+    };
+
+    const fs = require("fs");
+    fs.writeFileSync(options.output, JSON.stringify(config, null, 2));
+    logger.info(`Configuration template written to ${options.output}`);
+    logger.info(`Edit it and run: sbc generate -c "$(cat ${options.output})"`);
   });
 
 program.parse();

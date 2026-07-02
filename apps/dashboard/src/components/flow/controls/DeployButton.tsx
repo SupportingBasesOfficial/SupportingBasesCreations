@@ -11,6 +11,7 @@ import {
   ExternalLink,
   AlertCircle,
   CheckCircle2,
+  Terminal,
 } from "lucide-react";
 import type { DeployStep } from "@sbc/shared";
 
@@ -27,7 +28,7 @@ const STEP_LABELS: Record<DeployStep, string> = {
   failed: "Deployment Failed",
 };
 
-export function DeployButton() {
+export function DeployButton({ onViewLogs }: { onViewLogs?: () => void }) {
   const [showModal, setShowModal] = useState(false);
   const [projectName, setProjectName] = useState("my-project");
   const isValid = useGraphStore((s) => s.isValid);
@@ -57,17 +58,27 @@ export function DeployButton() {
         )}
         Deploy to Cloud
       </button>
+      {onViewLogs && (
+        <button
+          onClick={onViewLogs}
+          disabled={!isValid || nodeCount === 0}
+          className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-2.5 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+          title="View deploy logs"
+        >
+          <Terminal size={16} />
+        </button>
+      )}
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl dark:bg-gray-900">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-800">
+              <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
                 Cloud Deployment
               </h2>
               <button
                 onClick={() => !isDeploying && setShowModal(false)}
-                className="rounded p-1 text-gray-400 hover:bg-gray-100"
+                className="rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
                 disabled={isDeploying}
               >
                 <X size={20} />
@@ -77,18 +88,18 @@ export function DeployButton() {
             {!isDeploying && !result && (
               <div className="space-y-4">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-600">
+                  <label className="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-300">
                     Project Name
                   </label>
                   <input
                     type="text"
                     value={projectName}
                     onChange={(e) => setProjectName(e.target.value)}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-600"
                   />
                 </div>
                 {!cloudConfig && (
-                  <div className="flex items-center gap-2 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-600">
+                  <div className="flex items-center gap-2 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
                     <AlertCircle size={16} />
                     Cloud tokens not configured. Set GitHub, Vercel, and
                     Supabase tokens first.
@@ -97,7 +108,7 @@ export function DeployButton() {
                 <button
                   onClick={handleDeploy}
                   disabled={!cloudConfig}
-                  className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+                  className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
                 >
                   Start Deployment
                 </button>
@@ -121,7 +132,7 @@ export function DeployButton() {
                                 ? "bg-blue-600 text-white"
                                 : isPast
                                   ? "bg-green-500 text-white"
-                                  : "bg-gray-200 text-gray-400"
+                                  : "bg-gray-200 text-gray-400 dark:bg-gray-700 dark:text-gray-500"
                             }`}
                           >
                             {isCurrent ? (
@@ -133,7 +144,7 @@ export function DeployButton() {
                             )}
                           </div>
                           <span
-                            className={`text-sm ${isCurrent ? "font-medium text-gray-800" : isPast ? "text-gray-600" : "text-gray-400"}`}
+                            className={`text-sm ${isCurrent ? "font-medium text-gray-800 dark:text-gray-100" : isPast ? "text-gray-600 dark:text-gray-300" : "text-gray-400 dark:text-gray-500"}`}
                           >
                             {STEP_LABELS[s]}
                           </span>
@@ -141,13 +152,13 @@ export function DeployButton() {
                       );
                     })}
                 </div>
-                <div className="h-2 overflow-hidden rounded-full bg-gray-200">
+                <div className="h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 transition-all duration-500"
                     style={{ width: `${percentage}%` }}
                   />
                 </div>
-                <p className="text-center text-sm text-gray-500">
+                <p className="text-center text-sm text-gray-500 dark:text-gray-400">
                   {progress?.message}
                 </p>
               </div>
@@ -157,7 +168,7 @@ export function DeployButton() {
               <div className="space-y-4">
                 {result.success ? (
                   <>
-                    <div className="flex items-center gap-2 rounded-md bg-green-50 px-4 py-3 text-sm text-green-700">
+                    <div className="flex items-center gap-2 rounded-md bg-green-50 px-4 py-3 text-sm text-green-700 dark:bg-green-900/30 dark:text-green-400">
                       <CheckCircle2 size={20} />
                       <span className="font-medium">
                         Deployment Successful!
@@ -176,14 +187,14 @@ export function DeployButton() {
                     </div>
                   </>
                 ) : (
-                  <div className="flex items-center gap-2 rounded-md bg-red-50 px-4 py-3 text-sm text-red-600">
+                  <div className="flex items-center gap-2 rounded-md bg-red-50 px-4 py-3 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400">
                     <AlertCircle size={20} />
                     <span>{result.error}</span>
                   </div>
                 )}
                 <button
                   onClick={() => setShowModal(false)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
                 >
                   Close
                 </button>
@@ -202,10 +213,10 @@ function DeployLink({ label, url }: { label: string; url: string }) {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex items-center justify-between rounded-md border border-gray-200 px-4 py-2.5 text-sm hover:bg-gray-50"
+      className="flex items-center justify-between rounded-md border border-gray-200 px-4 py-2.5 text-sm transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
     >
-      <span className="font-medium text-gray-700">{label}</span>
-      <div className="flex items-center gap-2 text-blue-600">
+      <span className="font-medium text-gray-700 dark:text-gray-200">{label}</span>
+      <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
         <span className="truncate">{url}</span>
         <ExternalLink size={14} />
       </div>

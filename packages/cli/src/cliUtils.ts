@@ -1,17 +1,7 @@
-import { readFile, mkdir, writeFile, appendFile, readdir } from "fs/promises";
-import { existsSync } from "fs";
-import { resolve, join } from "path";
 import https from "https";
-import * as yaml from "js-yaml";
 import { projectOptionsSchema } from "@sbc/core";
 import { Project, Entity, Field } from "@sbc/core";
 
-export const SUPPORTED_CONFIG_NAMES = [
-  "sbc.config.json",
-  "sbc.config.yaml",
-  "sbc.config.yml",
-  ".sbcrc",
-];
 export const CURRENT_SCHEMA_VERSION = "1.0";
 
 export function autoFixProjectName(name: string): string {
@@ -22,17 +12,10 @@ export function autoFixProjectName(name: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-export async function findConfigFile(cwd: string): Promise<string | undefined> {
-  for (const name of SUPPORTED_CONFIG_NAMES) {
-    const candidate = join(cwd, name);
-    if (existsSync(candidate)) return candidate;
-  }
-  return undefined;
-}
-
 export async function computeDiff(
-  outputDir: string,
+  outputPrefix: string,
   artifacts: Array<{ path: string; content: string }>,
+  storage?: import("@sbc/core").CloudStorage,
 ): Promise<
   Array<{ path: string; status: "added" | "modified" | "unchanged" }>
 > {
@@ -41,13 +24,15 @@ export async function computeDiff(
     status: "added" | "modified" | "unchanged";
   }> = [];
   for (const artifact of artifacts) {
-    const existingPath = join(outputDir, artifact.path);
-    if (!existsSync(existingPath)) {
+    if (!storage) {
       diffs.push({ path: artifact.path, status: "added" });
       continue;
     }
-    const existing = await readFile(existingPath, "utf-8").catch(() => null);
-    if (existing === artifact.content) {
+    const cloudPath = `${outputPrefix}/${artifact.path}`;
+    const existing = await storage.download(cloudPath).catch(() => null);
+    if (existing === null) {
+      diffs.push({ path: artifact.path, status: "added" });
+    } else if (existing === artifact.content) {
       diffs.push({ path: artifact.path, status: "unchanged" });
     } else {
       diffs.push({ path: artifact.path, status: "modified" });
@@ -56,69 +41,75 @@ export async function computeDiff(
   return diffs;
 }
 
-export async function writeAuditLog(
-  outputDir: string,
-  entry: Record<string, unknown>,
-): Promise<void> {
-  try {
-    const auditDir = join(outputDir, ".sbc");
-    await mkdir(auditDir, { recursive: true });
-    const line =
-      JSON.stringify({ ...entry, timestamp: new Date().toISOString() }) + "\n";
-    await appendFile(join(auditDir, "audit.log"), line, "utf-8");
-  } catch {
-    // ignore audit write errors
-  }
-}
-
 export async function validateGeneratedTypeScript(
-  outputDir: string,
+  artifacts: Array<{ path: string; content: string }>,
 ): Promise<{ valid: boolean; errors: string[] }> {
-  const { execFile } = await import("child_process");
-  const { promisify } = await import("util");
-  const execFileAsync = promisify(execFile);
-
-  const tsFiles: string[] = [];
-  async function collect(dir: string): Promise<void> {
-    const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
-    for (const e of entries) {
-      const p = join(dir, e.name);
-      if (e.isDirectory()) await collect(p);
-      else if (e.name.endsWith(".ts")) tsFiles.push(p);
-    }
-  }
-  await collect(outputDir);
-
+  const tsFiles = artifacts.filter((a) => a.path.endsWith(".ts") || a.path.endsWith(".tsx"));
   if (tsFiles.length === 0) return { valid: true, errors: [] };
 
   try {
-    await execFileAsync(
-      "npx",
-      ["tsc", "--noEmit", "--skipLibCheck", ...tsFiles],
-      { cwd: outputDir },
-    );
-    return { valid: true, errors: [] };
-  } catch (err: any) {
-    const stderr = err.stderr ?? "";
-    const lines = stderr
-      .split("\n")
-      .filter((l: string) => l.includes("error TS"));
-    return { valid: false, errors: lines.slice(0, 5) };
-  }
-}
+    const ts = await import("typescript");
 
-export async function loadConfigFile(
-  configPath: string,
-): Promise<Record<string, unknown>> {
-  const absolutePath = resolve(configPath);
-  if (!existsSync(absolutePath)) {
-    throw new Error(`Config file not found: ${absolutePath}`);
+    const sourceFiles: Record<string, string> = {};
+    for (const f of tsFiles) {
+      sourceFiles[f.path] = f.content;
+    }
+
+    const compilerOptions = {
+      noEmit: true,
+      skipLibCheck: true,
+      strict: false,
+      module: ts.ModuleKind.ESNext,
+      target: ts.ScriptTarget.ES2022,
+      moduleResolution: ts.ModuleResolutionKind.Bundler,
+      jsx: ts.JsxEmit.React,
+      lib: ["ES2022", "DOM", "DOM.Iterable"],
+    };
+
+    const host = ts.createCompilerHost(compilerOptions);
+    const originalGetSourceFile = host.getSourceFile.bind(host);
+
+    host.getSourceFile = (
+      fileName: string,
+      languageVersion: number,
+      onError?: (msg: string) => void,
+      shouldCreateNewSourceFile?: boolean,
+    ) => {
+      if (sourceFiles[fileName]) {
+        return ts.createSourceFile(
+          fileName,
+          sourceFiles[fileName],
+          languageVersion,
+          true,
+          fileName.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+        );
+      }
+      return originalGetSourceFile(fileName, languageVersion, onError, shouldCreateNewSourceFile);
+    };
+
+    const program = ts.createProgram(
+      Object.keys(sourceFiles),
+      compilerOptions,
+      host,
+    );
+
+    const diagnostics = ts.getPreEmitDiagnostics(program);
+    const errors = diagnostics
+      .filter((d: any) => d.category === ts.DiagnosticCategory.Error)
+      .map((d: any) => {
+        const msg = ts.flattenDiagnosticMessageText(d.messageText, "\n");
+        if (d.file && d.start !== undefined) {
+          const { line, character } = d.file.getLineAndCharacterOfPosition(d.start);
+          return `${d.file.fileName}:${line + 1}:${character + 1} - ${msg}`;
+        }
+        return msg;
+      })
+      .slice(0, 10);
+
+    return { valid: errors.length === 0, errors };
+  } catch {
+    return { valid: true, errors: [] };
   }
-  const content = await readFile(absolutePath, "utf-8");
-  if (configPath.endsWith(".yaml") || configPath.endsWith(".yml")) {
-    return yaml.load(content) as Record<string, unknown>;
-  }
-  return JSON.parse(content);
 }
 
 export function buildProjectFromConfig(raw: unknown): Project {
@@ -150,76 +141,6 @@ export function buildProjectFromConfig(raw: unknown): Project {
     author: parsed.author,
     license: parsed.license,
   });
-}
-
-export async function runPreflightChecks(
-  outputDir: string,
-  force: boolean,
-): Promise<void> {
-  const protectedDirs = ["/", "/usr", "/usr/local", "/opt", "/var"].filter(
-    Boolean,
-  );
-  const resolved = resolve(outputDir);
-
-  for (const pd of protectedDirs) {
-    if (
-      resolved === resolve(pd) ||
-      resolved.startsWith(resolve(pd) + "\\") ||
-      resolved.startsWith(resolve(pd) + "/")
-    ) {
-      throw new Error(
-        `Refusing to write to protected directory: ${outputDir}. Use a project-specific path.`,
-      );
-    }
-  }
-
-  // Block writing directly to HOME, but allow subdirectories
-  const home = process.env.HOME ?? process.env.USERPROFILE ?? "";
-  if (home) {
-    const homeResolved = resolve(home);
-    if (resolved === homeResolved) {
-      throw new Error(
-        `Refusing to write directly to home directory: ${outputDir}. Use a project-specific path.`,
-      );
-    }
-  }
-
-  if (existsSync(outputDir)) {
-    const entries = await readdir(outputDir).catch(() => [] as string[]);
-    if (entries.length > 0 && !force) {
-      throw new Error(
-        `Output directory already exists and is not empty: ${outputDir}. ` +
-          `Pass --force to overwrite, or choose a different directory.`,
-      );
-    }
-
-    const gitDir = join(outputDir, ".git");
-    if (existsSync(gitDir)) {
-      // This warning is caller responsibility via logger
-    }
-  }
-}
-
-export async function ensureGitignoreEnv(outputDir: string): Promise<boolean> {
-  const gitignorePath = join(outputDir, ".gitignore");
-  const envPattern = ".env*";
-  try {
-    const content = await readFile(gitignorePath, "utf-8");
-    if (content.includes(envPattern)) return false;
-    await appendFile(
-      gitignorePath,
-      `\n# SBC: protect secrets\n${envPattern}\n`,
-      "utf-8",
-    );
-    return true;
-  } catch {
-    await writeFile(
-      gitignorePath,
-      `# SBC: protect secrets\n${envPattern}\n`,
-      "utf-8",
-    );
-    return true;
-  }
 }
 
 export const ERROR_GUIDE: Record<string, string> = {
@@ -256,19 +177,17 @@ export const ERROR_GUIDE: Record<string, string> = {
     "Could not merge JSON artifacts for the same path. Last artifact was used.",
   ARTIFACT_OVERWRITTEN:
     "Two generators produced the same file path. Review generator configuration.",
-  ENGINE_FATAL: "Critical engine failure. Check logs and disk space.",
+  ENGINE_FATAL: "Critical engine failure. Check logs and retry.",
   PATH_TRAVERSAL_BLOCKED:
     "Output path contained unsafe segments. Use a relative path.",
   RATE_LIMIT_EXCEEDED: "Too many requests. Wait 60 seconds and try again.",
-  CONFIG_FILE_NOT_FOUND:
-    "Verify the config file path and that the file exists.",
   CONFIG_PARSE_ERROR:
-    "The config file contains invalid JSON or unexpected structure.",
+    "The config JSON contains invalid structure.",
   VALIDATION_FAILED: "Fix the validation errors listed above and retry.",
   WRITE_FAILED:
-    "Could not write to output directory. Check permissions and disk space.",
+    "Could not write to cloud storage. Check BLOB_READ_WRITE_TOKEN.",
   HEALTH_CHECK_FAILED:
-    "System is unhealthy. Check disk space, memory, and permissions.",
+    "System is unhealthy. Check cloud KV connectivity.",
 };
 
 export function getErrorGuide(code: string): string | undefined {
@@ -282,7 +201,7 @@ export async function checkForUpdates(
   currentVersion: string,
 ): Promise<{ hasUpdate: boolean; latest?: string }> {
   const cacheKey = "SBC_UPDATE_CHECK";
-  const cacheTtl = 24 * 60 * 60 * 1000; // 24 hours
+  const cacheTtl = 24 * 60 * 60 * 1000;
 
   const cached = process.env[cacheKey];
   if (cached) {

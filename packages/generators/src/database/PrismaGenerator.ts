@@ -187,7 +187,48 @@ export class PrismaGenerator implements Generator {
     ];
 
     for (const entity of project.options.entities) {
-      lines.push(`  // TODO: Seed ${entity.name}`);
+      const fields = entity.fields.map((f) => {
+        switch (f.type) {
+          case 'UUID':
+            return `      ${f.name}: crypto.randomUUID()`;
+          case 'STRING':
+          case 'TEXT':
+            return `      ${f.name}: 'Sample ${f.name}'`;
+          case 'INTEGER':
+          case 'BIGINT':
+            return `      ${f.name}: 1`;
+          case 'DECIMAL':
+          case 'FLOAT':
+            return `      ${f.name}: 99.99`;
+          case 'BOOLEAN':
+            return `      ${f.name}: true`;
+          case 'DATE':
+          case 'DATETIME':
+          case 'TIMESTAMP':
+            return `      ${f.name}: new Date()`;
+          case 'JSON':
+          case 'JSONB':
+            return `      ${f.name}: { key: 'value' }`;
+          case 'ENUM':
+            return `      ${f.name}: 'OPTION_A'`;
+          case 'ARRAY':
+            return `      ${f.name}: ['item1', 'item2']`;
+          case 'BLOB':
+            return `      ${f.name}: Buffer.from('sample')`;
+          case 'RELATION':
+            return null;
+          default:
+            return `      ${f.name}: null`;
+        }
+      }).filter(Boolean);
+
+      lines.push(`  // Seed ${entity.name}`);
+      lines.push(`  await prisma.${entity.name.toLowerCase()}.create({`);
+      lines.push(`    data: {`);
+      lines.push(fields.join(',\n'));
+      lines.push(`    },`);
+      lines.push(`  });`);
+      lines.push('');
     }
 
     lines.push('');

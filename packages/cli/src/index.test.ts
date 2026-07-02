@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { execSync } from "child_process";
-import { mkdtempSync, writeFileSync, rmSync } from "fs";
+import { mkdtempSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 
@@ -58,41 +58,33 @@ describe("CLI Integration", () => {
     }).toThrow();
   });
 
-  it("should validate a config file", () => {
-    const configPath = join(tempDir, "valid.config.json");
-    writeFileSync(
-      configPath,
-      JSON.stringify({
-        name: "config-app",
-        architecture: "MODULAR_MONOLITH",
-        entities: [
-          {
-            name: "User",
-            fields: [{ name: "id", type: "UUID", options: {} }],
-            options: {},
-          },
-        ],
-      }),
-    );
+  it("should validate a config JSON string", () => {
+    const configJson = JSON.stringify({
+      name: "config-app",
+      architecture: "MODULAR_MONOLITH",
+      entities: [
+        {
+          name: "User",
+          fields: [{ name: "id", type: "UUID", options: {} }],
+          options: {},
+        },
+      ],
+    });
 
-    const out = execSync(`node ${CLI_PATH} validate -c ${configPath}`, {
+    const out = execSync(`node ${CLI_PATH} validate -c "${configJson.replace(/"/g, '\\"')}"`, {
       encoding: "utf-8",
     });
     expect(out).toContain("Configuration is valid");
   });
 
-  it("should reject invalid config file", () => {
-    const configPath = join(tempDir, "invalid.config.json");
-    writeFileSync(
-      configPath,
-      JSON.stringify({
-        name: "bad name with spaces",
-        architecture: "UNKNOWN_ARCH",
-      }),
-    );
+  it("should reject invalid config JSON string", () => {
+    const configJson = JSON.stringify({
+      name: "bad name with spaces",
+      architecture: "UNKNOWN_ARCH",
+    });
 
     expect(() => {
-      execSync(`node ${CLI_PATH} validate -c ${configPath}`, {
+      execSync(`node ${CLI_PATH} validate -c "${configJson.replace(/"/g, '\\"')}"`, {
         encoding: "utf-8",
       });
     }).toThrow();

@@ -44,27 +44,26 @@ export class EnvGenerator implements Generator {
   private generateEnvExample(project: Project): string {
     const lines: string[] = [
       `# ${project.name} Environment Configuration`,
-      `# Copy this file to .env.local and fill in your values`,
+      `# Cloud-only mode — all services are cloud-hosted`,
       '',
       '## Application',
-      `NODE_ENV=development`,
+      `NODE_ENV=production`,
       `NEXT_PUBLIC_APP_NAME=${project.name}`,
-      `NEXT_PUBLIC_APP_URL=http://localhost:3000`,
+      `NEXT_PUBLIC_APP_URL=`,
       '',
-      '## Database',
-      `DATABASE_URL=postgresql://user:password@localhost:5432/${project.name}`,
+      '## Database (Supabase)',
+      `DATABASE_URL=`,
+      `DIRECT_URL=`,
       '',
       '## NextAuth',
-      'NEXTAUTH_URL=http://localhost:3000',
-      'NEXTAUTH_SECRET=generate-a-random-secret-here-min-32-chars',
+      'NEXTAUTH_URL=',
+      'NEXTAUTH_SECRET=',
       '',
     ];
 
     if (project.hasFeature(FeatureFlag.AUTH)) {
       lines.push('## Authentication Providers');
-      lines.push('# Uncomment and configure the providers you want to use');
-      lines.push('');
-      lines.push('# Credentials (built-in, no config needed)');
+      lines.push('# Configure the providers you want to use');
       lines.push('');
     }
 
@@ -73,13 +72,27 @@ export class EnvGenerator implements Generator {
     }
 
     if (project.options.infrastructure.cache !== 'NONE') {
-      lines.push('## Cache');
-      lines.push('REDIS_URL=redis://localhost:6379');
+      lines.push('## Cache (Upstash Redis)');
+      lines.push('UPSTASH_REDIS_REST_URL=');
+      lines.push('UPSTASH_REDIS_REST_TOKEN=');
       lines.push('');
     }
 
-    lines.push('## Monitoring (optional)');
-    lines.push('# SENTRY_DSN=');
+    lines.push('## Monitoring');
+    lines.push('SENTRY_DSN=');
+    lines.push('');
+
+    lines.push('## Cloud Storage (Vercel Blob)');
+    lines.push('BLOB_READ_WRITE_TOKEN=');
+    lines.push('');
+
+    lines.push('## Feature Flags (Vercel Edge Config)');
+    lines.push('EDGE_CONFIG=');
+    lines.push('');
+
+    lines.push('## Queue (Upstash QStash)');
+    lines.push('QSTASH_TOKEN=');
+    lines.push('QSTASH_CURRENT_URL=');
     lines.push('');
 
     return lines.join('\n');
@@ -87,11 +100,12 @@ export class EnvGenerator implements Generator {
 
   private generateLocalEnv(project: Project): string {
     const lines: string[] = [
-      `# ${project.name} - Local Development Environment`,
+      `# ${project.name} - Cloud Development Environment`,
+      `# All services are cloud-hosted — no localhost dependencies`,
       '',
       'NODE_ENV=development',
-      'NEXTAUTH_SECRET=local-dev-secret-change-in-production',
-      `DATABASE_URL=postgresql://postgres:postgres@localhost:5432/${project.name}_dev`,
+      'NEXTAUTH_SECRET=dev-secret-change-in-production',
+      `DATABASE_URL=`,
       '',
     ];
 
@@ -181,7 +195,7 @@ async function main() {
   const env: Record<string, string> = {
     NODE_ENV: 'development',
     NEXTAUTH_SECRET: Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2),
-    DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/${project.name}_dev',
+    DATABASE_URL: '',
   };
 
 ${project.options.providers.map((p) => p.fields.map((f) => `  env.${f.envKey} = await ask('${f.label}${f.required ? ' (required)' : ''}: ') || '${f.defaultValue || ''}';`).join('\n')).join('\n\n')}

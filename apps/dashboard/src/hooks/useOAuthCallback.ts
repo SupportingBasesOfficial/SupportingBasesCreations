@@ -24,24 +24,35 @@ export function useOAuthCallback() {
       const provider = success as "github" | "vercel" | "supabase";
       setOauthStatus({ provider, success: true });
 
-      const stored = localStorage.getItem("sbc-cloud-config");
-      const existing: Partial<CloudConfig> = stored ? JSON.parse(stored) : {};
+      // Fetch existing config from API, merge new provider token, save back
+      fetch("/api/cloud-config")
+        .then((res) => (res.ok ? res.json() : { cloudConfig: null }))
+        .then((data) => {
+          const existing: Partial<CloudConfig> = data.cloudConfig ?? {};
 
-      const config: CloudConfig = {
-        github: existing.github ?? { token: "", owner: "" },
-        vercel: existing.vercel ?? { token: "", teamId: undefined },
-        supabase: existing.supabase ?? { token: "", organizationId: "" },
-        [provider]: {
-          token,
-          owner:
-            (existing[provider] as { owner?: string })?.owner ??
-            (existing[provider] as { teamId?: string })?.teamId ??
-            "",
-        },
-      } as CloudConfig;
+          const config: CloudConfig = {
+            github: existing.github ?? { token: "", owner: "" },
+            vercel: existing.vercel ?? { token: "", teamId: undefined },
+            supabase: existing.supabase ?? { token: "", organizationId: "" },
+            [provider]: {
+              token,
+              owner:
+                (existing[provider] as { owner?: string })?.owner ??
+                (existing[provider] as { teamId?: string })?.teamId ??
+                "",
+            },
+          } as CloudConfig;
 
-      setCloudConfig(config);
-      localStorage.setItem("sbc-cloud-config", JSON.stringify(config));
+          setCloudConfig(config);
+
+          // Persist to cloud
+          fetch("/api/cloud-config", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ cloudConfig: config }),
+          }).catch(() => {});
+        })
+        .catch(() => {});
 
       const cleanUrl = window.location.pathname;
       window.history.replaceState({}, "", cleanUrl);

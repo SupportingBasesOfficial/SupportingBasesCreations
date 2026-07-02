@@ -6,31 +6,47 @@ import {
   Project,
   Entity,
   Field,
+  UpstashRedisKV,
 } from "@sbc/core";
+import {
+  BaseTemplateGenerator,
+  PrismaGenerator,
+  TRPCGenerator,
+  NextJSGenerator,
+  AuthGenerator,
+  BillingGenerator,
+  DockerGenerator,
+  EnvGenerator,
+  GitHubActionsGenerator,
+  DocsGenerator,
+} from "@sbc/generators";
 import type { CloudConfig, DeployProgress } from "@sbc/shared";
 
 export const maxDuration = 300;
+export const runtime = "nodejs";
 
-const RATE_LIMIT_WINDOW = 60_000;
 const RATE_LIMIT_MAX = 5;
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_TTL = 60;
 
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW });
-    return true;
-  }
-  if (entry.count >= RATE_LIMIT_MAX) return false;
-  entry.count++;
-  return true;
+function getKV(): UpstashRedisKV | null {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) return null;
+  return new UpstashRedisKV({ url, token });
+}
+
+async function checkRateLimit(ip: string): Promise<boolean> {
+  const kv = getKV();
+  if (!kv) return true;
+  const key = `ratelimit:deploy:${ip}`;
+  const count = await kv.incr(key, RATE_LIMIT_TTL);
+  return count <= RATE_LIMIT_MAX;
 }
 
 export async function POST(request: NextRequest) {
   const ip =
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-  if (!checkRateLimit(ip)) {
+  if (!(await checkRateLimit(ip))) {
     return NextResponse.json(
       {
         success: false,
@@ -96,6 +112,16 @@ export async function POST(request: NextRequest) {
           });
 
           const registry = new GeneratorRegistry();
+          registry.register(new BaseTemplateGenerator());
+          registry.register(new PrismaGenerator());
+          registry.register(new TRPCGenerator());
+          registry.register(new NextJSGenerator());
+          registry.register(new AuthGenerator());
+          registry.register(new BillingGenerator());
+          registry.register(new DockerGenerator());
+          registry.register(new EnvGenerator());
+          registry.register(new GitHubActionsGenerator());
+          registry.register(new DocsGenerator());
           const engine = new GenerationEngine(registry);
           const generationResult = await engine.generate({
             project,
@@ -104,7 +130,7 @@ export async function POST(request: NextRequest) {
 
           if (!generationResult.success && generationResult.errors.length > 0) {
             throw new Error(
-              `Generation failed: ${generationResult.errors.map((e) => e.message).join(", ")}`,
+              `Generation failed: ${generationResult.errors.map((e: { message: string }) => e.message).join(", ")}`,
             );
           }
 

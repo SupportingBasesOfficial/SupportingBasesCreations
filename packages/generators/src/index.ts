@@ -1,10 +1,15 @@
+export { BaseTemplateGenerator } from './base/BaseTemplateGenerator.js';
 export { PrismaGenerator } from './database/PrismaGenerator.js';
 export { TRPCGenerator } from './backend/TRPCGenerator.js';
 export { NextJSGenerator } from './frontend/NextJSGenerator.js';
 export { DockerGenerator } from './infrastructure/DockerGenerator.js';
 export { EnvGenerator } from './infrastructure/EnvGenerator.js';
+export { VercelDeployGenerator } from './infrastructure/VercelDeployGenerator.js';
+export { SupabaseSetupGenerator } from './infrastructure/SupabaseSetupGenerator.js';
+export { CloudEnvGenerator } from './infrastructure/CloudEnvGenerator.js';
 export { AuthGenerator } from './features/AuthGenerator.js';
 export { FeatureFlagGenerator } from './features/FeatureFlagGenerator.js';
+export { BillingGenerator } from './features/BillingGenerator.js';
 export { TestGenerator } from './testing/TestGenerator.js';
 export { PactGenerator } from './testing/PactGenerator.js';
 export { K6Generator } from './testing/K6Generator.js';
@@ -14,3 +19,9 @@ export { ObservabilityStackGenerator } from './observability/ObservabilityStackG
 export { EventDrivenGenerator } from './events/EventDrivenGenerator.js';
 export { MultiTenancyGenerator } from './multitenancy/MultiTenancyGenerator.js';
 export { SecurityAuditGenerator } from './security/SecurityAuditGenerator.js';
+export { SecurityHardeningGenerator } from './security/SecurityHardeningGenerator.js';
+export { EncryptionGenerator } from './security/EncryptionGenerator.js';
+export { SecurityChaosGenerator } from './security/SecurityChaosGenerator.js';
+export { ThreatIntelligenceGenerator } from './security/ThreatIntelligenceGenerator.js';
+export { ConfidentialComputingGenerator } from './security/ConfidentialComputingGenerator.js';
+export { SIEMGenerator } from './security/SIEMGenerator.js';

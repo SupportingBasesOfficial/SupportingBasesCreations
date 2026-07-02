@@ -6,6 +6,11 @@ export const metadata: Metadata = {
   title: "SBC Dashboard",
   description: "SupportingBasesCreations - Mega-Tech Project Generator",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+    apple: "/favicon.svg",
+  },
 };
 
 export const viewport: Viewport = {
@@ -15,7 +20,8 @@ export const viewport: Viewport = {
 const themeScript = `
 (function() {
   try {
-    var theme = localStorage.getItem('sbc-theme');
+    var match = document.cookie.match(/(?:^|; )sbc-theme=([^;]*)/);
+    var theme = match ? decodeURIComponent(match[1]) : null;
     if (!theme) {
       theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }

@@ -47,7 +47,7 @@ jobs:
         with:
           node-version: 20
           cache: 'pnpm'
-      - run: pnpm install
+      - run: pnpm install --frozen-lockfile
       - run: pnpm lint
 
   typecheck:
@@ -60,24 +60,11 @@ jobs:
         with:
           node-version: 20
           cache: 'pnpm'
-      - run: pnpm install
+      - run: pnpm install --frozen-lockfile
       - run: pnpm check-types
 
   test:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports: ['5432:5432']
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v3
@@ -86,10 +73,10 @@ jobs:
         with:
           node-version: 20
           cache: 'pnpm'
-      - run: pnpm install
+      - run: pnpm install --frozen-lockfile
       - run: pnpm test
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/test
+          DATABASE_URL: \${{ secrets.SUPABASE_DB_URL }}
 
   security:
     runs-on: ubuntu-latest
@@ -101,6 +88,34 @@ jobs:
           scan-type: 'fs'
           ignore-unfixed: true
           severity: 'CRITICAL,HIGH'
+
+  deploy-preview:
+    needs: [lint, typecheck, test]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - name: Setup Vercel CLI
+        run: pnpm add -g vercel@latest
+      - name: Deploy to Vercel Preview
+        id: vercel-preview
+        run: |
+          PREVIEW_URL=$(vercel --token \${{ secrets.VERCEL_TOKEN }} --yes 2>&1 | tail -1)
+          echo "preview_url=$PREVIEW_URL" >> $GITHUB_OUTPUT
+        env:
+          VERCEL_ORG_ID: \${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: \${{ secrets.VERCEL_PROJECT_ID }}
+      - name: Run E2E against preview
+        run: pnpm exec playwright test --reporter=github
+        env:
+          BASE_URL: \${{ steps.vercel-preview.outputs.preview_url }}
 `;
   }
 
@@ -112,8 +127,9 @@ on:
     branches: [main]
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v3
@@ -122,18 +138,36 @@ jobs:
         with:
           node-version: 20
           cache: 'pnpm'
-      - run: pnpm install
+      - run: pnpm install --frozen-lockfile
       - run: pnpm build
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - uses: actions/checkout@v4
-      - name: Deploy to ${project.options.infrastructure.cloud}
-        run: echo "Deploying ${project.name}..."
-        # TODO: Add cloud-specific deployment steps
+      - name: Deploy to Vercel Production
+        run: vercel --prod --token \${{ secrets.VERCEL_TOKEN }} --yes
+        env:
+          VERCEL_ORG_ID: \${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: \${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Push database schema to Supabase
+        run: npx prisma db push --skip-generate
+        env:
+          DATABASE_URL: \${{ secrets.SUPABASE_DB_URL }}
+          DIRECT_URL: \${{ secrets.SUPABASE_DIRECT_URL }}
+
+      - name: Configure environment variables on Vercel
+        run: |
+          vercel env add DATABASE_URL production --token \${{ secrets.VERCEL_TOKEN }} <<< "\${{ secrets.SUPABASE_DB_URL }}"
+          vercel env add NEXT_PUBLIC_SUPABASE_URL production --token \${{ secrets.VERCEL_TOKEN }} <<< "\${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}"
+          vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY production --token \${{ secrets.VERCEL_TOKEN }} <<< "\${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}"
+          vercel env add UPSTASH_REDIS_REST_URL production --token \${{ secrets.VERCEL_TOKEN }} <<< "\${{ secrets.UPSTASH_REDIS_REST_URL }}"
+          vercel env add UPSTASH_REDIS_REST_TOKEN production --token \${{ secrets.VERCEL_TOKEN }} <<< "\${{ secrets.UPSTASH_REDIS_REST_TOKEN }}"
+        env:
+          VERCEL_ORG_ID: \${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: \${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Smoke test production
+        run: |
+          sleep 10
+          curl -f https://${project.name}.vercel.app/api/health || exit 1
 `;
   }
 }

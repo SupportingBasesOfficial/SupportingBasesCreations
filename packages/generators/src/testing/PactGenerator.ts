@@ -46,7 +46,7 @@ describe('Pact Provider Verification', () => {
     const branch = execSync('git rev-parse --abbrev-ref HEAD').toString().trim();
 
     await new Verifier({
-      providerBaseUrl: process.env.PROVIDER_BASE_URL || 'http://localhost:3000',
+      providerBaseUrl: process.env.PROVIDER_BASE_URL!,
       pactBrokerUrl: process.env.PACT_BROKER_BASE_URL || 'https://your-org.pactflow.io',
       pactBrokerToken: process.env.PACT_BROKER_TOKEN!,
       provider: '${project.name}-api',

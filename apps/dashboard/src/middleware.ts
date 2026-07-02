@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createMiddlewareSupabaseClient } from "./lib/supabase-server";
 
-const PUBLIC_PATHS = ["/", "/api/oauth"];
+const PUBLIC_PATHS = ["/login", "/auth/callback", "/auth/confirm", "/api/oauth"];
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const isPublic = PUBLIC_PATHS.some(
@@ -13,17 +14,26 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const githubToken = request.cookies.get("sbc-token-github")?.value;
-  const vercelToken = request.cookies.get("sbc-token-vercel")?.value;
-  const supabaseToken = request.cookies.get("sbc-token-supabase")?.value;
+  // Check Supabase auth session
+  const { supabase, response } = createMiddlewareSupabaseClient(request);
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
 
-  if (!githubToken && !vercelToken && !supabaseToken) {
-    const loginUrl = new URL("/", request.url);
-    loginUrl.searchParams.set("auth_required", "true");
-    return NextResponse.redirect(loginUrl);
+  if (!session) {
+    // Also check legacy cloud provider tokens (for OAuth flow before auth)
+    const hasCloudToken =
+      request.cookies.get("sbc-token-github")?.value ||
+      request.cookies.get("sbc-token-vercel")?.value ||
+      request.cookies.get("sbc-token-supabase")?.value;
+
+    if (!hasCloudToken) {
+      const loginUrl = new URL("/login", request.url);
+      return NextResponse.redirect(loginUrl);
+    }
   }
 
-  return NextResponse.next();
+  return response;
 }
 
 export const config = {

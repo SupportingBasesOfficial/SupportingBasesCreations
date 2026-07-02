@@ -1,0 +1,3 @@
+[submodule "packages/core/templates/base-template"]
+	path = packages/core/templates/base-template
+	url = https://github.com/SupportingBasesOfficial/base-template.git

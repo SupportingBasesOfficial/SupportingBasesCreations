@@ -1,48 +1,59 @@
-import { readdir, readFile, access } from 'fs/promises';
-import { join, resolve } from 'path';
-import { pathToFileURL } from 'url';
 import type { Plugin, PluginManifest } from './PluginManifest.js';
+import type { CloudKV } from '../cloud/CloudKV.js';
 
 export class PluginLoader {
-  async loadFromDirectory(dir: string): Promise<Plugin[]> {
+  /**
+   * Load plugins from a CloudKV registry.
+   * Each plugin manifest is stored as JSON in CloudKV under key `plugin:<name>`.
+   * The manifest's `entry` field is an npm package name or URL to dynamically import.
+   */
+  async loadFromCloud(kv: CloudKV, prefix = 'plugin:'): Promise<Plugin[]> {
     const plugins: Plugin[] = [];
-    const resolved = resolve(dir);
 
     try {
-      await access(resolved);
-    } catch {
-      return [];
-    }
+      const registryRaw = await kv.get(`${prefix}registry`);
+      if (!registryRaw) return [];
 
-    const entries = await readdir(resolved, { withFileTypes: true });
-
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-
-      const pluginDir = join(resolved, entry.name);
-      const manifestPath = join(pluginDir, 'sbc-plugin.json');
-
-      try {
-        const manifest = await this.loadManifest(manifestPath);
-        const module = await this.loadModule(join(pluginDir, manifest.entry));
-        plugins.push({ manifest, module });
-      } catch (err) {
-        console.warn(`Failed to load plugin from ${pluginDir}:`, (err as Error).message);
+      const registry = JSON.parse(registryRaw) as string[];
+      for (const name of registry) {
+        try {
+          const manifestRaw = await kv.get(`${prefix}${name}`);
+          if (!manifestRaw) continue;
+          const manifest = JSON.parse(manifestRaw) as PluginManifest;
+          const module = await this.loadModule(manifest.entry);
+          plugins.push({ manifest, module });
+        } catch (err) {
+          console.warn(`Failed to load plugin ${name}:`, (err as Error).message);
+        }
       }
+    } catch (err) {
+      console.warn('Failed to load plugin registry from cloud:', (err as Error).message);
     }
 
     return plugins;
   }
 
-  async loadManifest(path: string): Promise<PluginManifest> {
-    const raw = await readFile(path, 'utf-8');
-    const parsed = JSON.parse(raw);
-    return parsed as PluginManifest;
+  /**
+   * Load a single plugin by npm package name or URL.
+   * Works in serverless environments where dynamic import of npm packages is supported.
+   */
+  async loadModule(entry: string): Promise<unknown> {
+    const mod = await import(entry);
+    return mod.default ?? mod;
   }
 
-  async loadModule(entryPath: string): Promise<unknown> {
-    const url = pathToFileURL(resolve(entryPath)).href;
-    const mod = await import(url);
-    return mod.default ?? mod;
+  /**
+   * Register a plugin manifest in CloudKV.
+   */
+  async registerInCloud(kv: CloudKV, manifest: PluginManifest, prefix = 'plugin:'): Promise<void> {
+    const key = `${prefix}${manifest.name}`;
+    await kv.set(key, JSON.stringify(manifest), 0);
+
+    const registryRaw = await kv.get(`${prefix}registry`);
+    const registry = registryRaw ? (JSON.parse(registryRaw) as string[]) : [];
+    if (!registry.includes(manifest.name)) {
+      registry.push(manifest.name);
+      await kv.set(`${prefix}registry`, JSON.stringify(registry), 0);
+    }
   }
 }

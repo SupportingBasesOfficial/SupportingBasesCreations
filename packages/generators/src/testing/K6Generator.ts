@@ -192,12 +192,12 @@ jobs:
       - name: Run Smoke Test
         run: k6 run k6/smoke-test.js
         env:
-          BASE_URL: \${{ secrets.STAGING_URL || 'http://localhost:3000' }}
+          BASE_URL: \${{ secrets.STAGING_URL }}
       - name: Run Load Test
         if: github.event_name == 'push'
         run: k6 run k6/load-test.js
         env:
-          BASE_URL: \${{ secrets.STAGING_URL || 'http://localhost:3000' }}
+          BASE_URL: \${{ secrets.STAGING_URL }}
 `;
   }
 

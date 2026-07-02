@@ -228,7 +228,11 @@ export class TenantResolver {
 
   private generateTenantSwitchRoute(): string {
     return `import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 import { tenantRepository } from '../../../lib/tenant/TenantRepository';
+
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 export async function POST(req: Request) {
   const { tenantId } = await req.json();
@@ -238,19 +242,59 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
   }
 
+  const token = await generateTenantToken(tenant);
+
   return NextResponse.json({
     tenant: {
       id: tenant.tenantId,
       name: tenant.tenantName,
       plan: tenant.plan,
     },
-    token: await generateTenantToken(tenant),
+    token,
   });
 }
 
-async function generateTenantToken(tenant: { tenantId: string }): Promise<string> {
-  // TODO: Implement JWT signing with tenant claims
-  return 'tenant-jwt-placeholder';
+/**
+ * Generate a tenant-scoped JWT using Supabase service role.
+ * The token includes tenant claims in app_metadata for RLS policies.
+ */
+async function generateTenantToken(tenant: {
+  tenantId: string;
+  tenantName: string;
+  plan: string;
+}): Promise<string> {
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required');
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+  // Set tenant context in the user's app_metadata for RLS
+  const { data, error } = await supabase.auth.admin.generateLink({
+    type: 'magiclink',
+    email: \`tenant-\${tenant.tenantId}@app.local\`,
+    options: {
+      data: {
+        tenantId: tenant.tenantId,
+        tenantName: tenant.tenantName,
+        plan: tenant.plan,
+      },
+    },
+  });
+
+  if (error || !data) {
+    throw new Error(\`Failed to generate tenant token: \${error?.message ?? 'unknown'}\`);
+  }
+
+  // Return the properties.action_link which contains the token
+  const url = new URL((data.properties as Record<string, string>)?.action_link ?? '');
+  const token = url.searchParams.get('access_token');
+
+  if (!token) {
+    throw new Error('No access_token in generated link');
+  }
+
+  return token;
 }
 `;
   }

@@ -3,7 +3,7 @@ import { useGraphStore } from "../store/graphStore";
 import type { GraphNode } from "@sbc/shared";
 import { NodeType } from "@sbc/shared";
 
-function createNode(id: string, type: NodeType = NodeType.ENTITY): GraphNode {
+function createNode(id: string, type: NodeType = NodeType.CLOUD_DATABASE): GraphNode {
   return {
     id,
     type,

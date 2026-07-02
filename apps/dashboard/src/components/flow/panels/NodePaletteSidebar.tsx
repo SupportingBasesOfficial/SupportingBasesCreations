@@ -62,14 +62,14 @@ export function NodePaletteSidebar() {
                 key={item.type}
                 draggable
                 onDragStart={(e) => onDragStart(e, item.type)}
-                className="flex cursor-grab items-center gap-3 rounded-lg border border-gray-200 px-3 py-2.5 transition-all hover:border-gray-300 hover:shadow-sm active:cursor-grabbing dark:border-gray-700 dark:hover:border-gray-600 dark:hover:shadow-md"
+                className="flex cursor-grab items-start gap-3 rounded-lg border border-gray-200 px-3 py-2.5 transition-all hover:border-gray-300 hover:shadow-sm active:cursor-grabbing dark:border-gray-700 dark:hover:border-gray-600 dark:hover:shadow-md"
               >
                 <span className="text-xl">{item.icon}</span>
                 <div className="flex-1">
                   <div className="text-sm font-medium text-gray-700 dark:text-gray-200">
                     {item.label}
                   </div>
-                  <div className="text-xs text-gray-400 truncate dark:text-gray-500">
+                  <div className="line-clamp-2 text-xs text-gray-400 dark:text-gray-500">
                     {item.description}
                   </div>
                 </div>

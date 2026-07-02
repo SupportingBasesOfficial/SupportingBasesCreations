@@ -58,9 +58,9 @@ export class EventDrivenGenerator implements Generator {
     });
 
     artifacts.push({
-      path: 'docker-compose.kafka.yml',
-      content: this.generateKafkaCompose(),
-      language: 'yaml',
+      path: 'src/lib/events/upstash-kafka.ts',
+      content: this.generateUpstashKafkaConfig(),
+      language: 'typescript',
     });
 
     return artifacts;
@@ -81,6 +81,13 @@ export type EventHandler<T extends DomainEvent = DomainEvent> = (event: T) => Pr
 
 export class EventBus {
   private handlers: Map<string, EventHandler[]> = new Map();
+  private qstashToken: string | undefined;
+  private receiverBaseUrl: string | undefined;
+
+  constructor() {
+    this.qstashToken = process.env.QSTASH_TOKEN;
+    this.receiverBaseUrl = process.env.QSTASH_CURRENT_URL;
+  }
 
   subscribe<T extends DomainEvent>(eventType: string, handler: EventHandler<T>): void {
     const existing = this.handlers.get(eventType) ?? [];
@@ -89,6 +96,26 @@ export class EventBus {
   }
 
   async publish<T extends DomainEvent>(event: T): Promise<void> {
+    // Publish to cloud queue (Upstash QStash) for cross-instance delivery
+    if (this.qstashToken && this.receiverBaseUrl) {
+      try {
+        await fetch('https://qstash.upstash.io/v2/publish', {
+          method: 'POST',
+          headers: {
+            Authorization: \`Bearer \${this.qstashToken}\`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            url: \`\${this.receiverBaseUrl}/api/events/\${event.type}\`,
+            body: JSON.stringify(event),
+          }),
+        });
+      } catch (err) {
+        console.error('QStash publish failed, falling back to local handlers:', err);
+      }
+    }
+
+    // Also call local handlers for immediate processing
     const handlers = this.handlers.get(event.type) ?? [];
     await Promise.all(handlers.map((h) => h(event)));
   }
@@ -189,16 +216,40 @@ export class Saga {
 }
 
 export class SagaOrchestrator {
-  private sagas: Map<string, Saga> = new Map();
+  private qstashToken: string | undefined;
+  private receiverBaseUrl: string | undefined;
 
-  register(name: string, saga: Saga): void {
-    this.sagas.set(name, saga);
+  constructor() {
+    this.qstashToken = process.env.QSTASH_TOKEN;
+    this.receiverBaseUrl = process.env.QSTASH_CURRENT_URL;
+  }
+
+  register(name: string, _saga: Saga): void {
+    // In serverless, saga registration is done via API route handlers
+    // The saga name maps to an endpoint: /api/sagas/{name}
   }
 
   async run(name: string): Promise<void> {
-    const saga = this.sagas.get(name);
-    if (!saga) throw new Error(\`Saga '\${name}' not found\`);
-    await saga.execute();
+    if (!this.qstashToken || !this.receiverBaseUrl) {
+      throw new Error('QSTASH_TOKEN and QSTASH_CURRENT_URL are required for saga orchestration');
+    }
+
+    // Trigger saga execution via cloud queue (QStash)
+    const res = await fetch('https://qstash.upstash.io/v2/publish', {
+      method: 'POST',
+      headers: {
+        Authorization: \`Bearer \${this.qstashToken}\`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        url: \`\${this.receiverBaseUrl}/api/sagas/\${name}\`,
+        body: JSON.stringify({ saga: name }),
+      }),
+    });
+
+    if (!res.ok) {
+      throw new Error(\`Failed to trigger saga '\${name}': \${await res.text()}\`);
+    }
   }
 }
 `;
@@ -211,17 +262,69 @@ import { logger } from '../../observability/logger';
 export function registerUserEventHandlers(): void {
   eventBus.subscribe('user.created', async (event) => {
     logger.info('User created', { userId: event.aggregateId, payload: event.payload });
-    // TODO: Send welcome email, create default organization, etc.
+
+    // Send welcome email via QStash (async, non-blocking)
+    const qstashToken = process.env.QSTASH_TOKEN;
+    const qstashUrl = process.env.QSTASH_CURRENT_URL;
+    if (qstashToken && qstashUrl) {
+      try {
+        await fetch('https://qstash.upstash.io/v2/publish', {
+          method: 'POST',
+          headers: {
+            Authorization: \`Bearer \${qstashToken}\`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            url: \`\${qstashUrl}/api/emails/welcome\`,
+            body: JSON.stringify({ userId: event.aggregateId, email: (event.payload as Record<string, string>)?.email }),
+          }),
+        });
+      } catch (err) {
+        logger.error('Failed to queue welcome email', { error: String(err) });
+      }
+    }
   });
 
   eventBus.subscribe('user.updated', async (event) => {
     logger.info('User updated', { userId: event.aggregateId, payload: event.payload });
-    // TODO: Invalidate cache, update search index, etc.
+
+    // Invalidate user cache in Upstash Redis
+    const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
+    const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+    if (redisUrl && redisToken) {
+      try {
+        await fetch(\`\${redisUrl}/del/user:\${event.aggregateId}\`, {
+          method: 'POST',
+          headers: { Authorization: \`Bearer \${redisToken}\` },
+        });
+      } catch (err) {
+        logger.error('Failed to invalidate user cache', { error: String(err) });
+      }
+    }
   });
 
   eventBus.subscribe('user.deleted', async (event) => {
     logger.warn('User deleted', { userId: event.aggregateId });
-    // TODO: GDPR data cleanup, revoke sessions, etc.
+
+    // GDPR: Revoke all sessions and clean up user data
+    const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
+    const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+    if (redisUrl && redisToken) {
+      try {
+        // Delete all session keys for this user
+        await fetch(\`\${redisUrl}/del/session:\${event.aggregateId}\`, {
+          method: 'POST',
+          headers: { Authorization: \`Bearer \${redisToken}\` },
+        });
+        // Delete user cache
+        await fetch(\`\${redisUrl}/del/user:\${event.aggregateId}\`, {
+          method: 'POST',
+          headers: { Authorization: \`Bearer \${redisToken}\` },
+        });
+      } catch (err) {
+        logger.error('Failed to cleanup user data', { error: String(err) });
+      }
+    }
   });
 }
 `;
@@ -333,32 +436,63 @@ export class UserReadModel implements ReadModel<{ id: string; email: string; nam
 `;
   }
 
-  private generateKafkaCompose(): string {
-    return `version: '3.8'
+  private generateUpstashKafkaConfig(): string {
+    return `export interface UpstashKafkaConfig {
+  url: string;
+  username: string;
+  password: string;
+  topic: string;
+}
 
-services:
-  zookeeper:
-    image: confluentinc/cp-zookeeper:latest
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
+export function getKafkaConfig(): UpstashKafkaConfig {
+  const url = process.env.UPSTASH_KAFKA_REST_URL;
+  const username = process.env.UPSTASH_KAFKA_REST_USERNAME;
+  const password = process.env.UPSTASH_KAFKA_REST_PASSWORD;
+  const topic = process.env.UPSTASH_KAFKA_TOPIC || 'domain-events';
 
-  kafka:
-    image: confluentinc/cp-kafka:latest
-    ports:
-      - '9092:9092'
-    environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+  if (!url || !username || !password) {
+    throw new Error('UPSTASH_KAFKA_REST_URL, UPSTASH_KAFKA_REST_USERNAME, and UPSTASH_KAFKA_REST_PASSWORD are required');
+  }
 
-  kafdrop:
-    image: obsidiandynamics/kafdrop:latest
-    ports:
-      - '9000:9000'
-    environment:
-      KAFKA_BROKERCONNECT: kafka:9092
+  return { url, username, password, topic };
+}
+
+export async function produceEvent(event: { type: string; payload: unknown }): Promise<void> {
+  const config = getKafkaConfig();
+  const auth = Buffer.from(\`\${config.username}:\${config.password}\`).toString('base64');
+
+  const res = await fetch(\`\${config.url}/produce/\${config.topic}\`, {
+    method: 'POST',
+    headers: {
+      Authorization: \`Basic \${auth}\`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(event),
+  });
+
+  if (!res.ok) {
+    throw new Error(\`Kafka produce failed: \${await res.text()}\`);
+  }
+}
+
+export async function consumeEvents(groupId: string): Promise<void> {
+  const config = getKafkaConfig();
+  const auth = Buffer.from(\`\${config.username}:\${config.password}\`).toString('base64');
+
+  const res = await fetch(\`\${config.url}/consume/\${config.topic}/\${groupId}\`, {
+    headers: { Authorization: \`Basic \${auth}\` },
+  });
+
+  if (!res.ok) {
+    throw new Error(\`Kafka consume failed: \${await res.text()}\`);
+  }
+
+  const messages = await res.json() as Array<{ value: string }>;
+  for (const msg of messages) {
+    const event = JSON.parse(msg.value);
+    console.log('Consumed event:', event);
+  }
+}
 `;
   }
 }

@@ -5,11 +5,23 @@ import { Moon, Sun } from "lucide-react";
 
 type Theme = "light" | "dark";
 
+function getCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+function setCookie(name: string, value: string, days: number): void {
+  if (typeof document === "undefined") return;
+  const expires = new Date(Date.now() + days * 864e5).toUTCString();
+  document.cookie = `${name}=${encodeURIComponent(value)};expires=${expires};path=/;SameSite=Lax`;
+}
+
 export function useTheme() {
   const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
-    const stored = localStorage.getItem("sbc-theme") as Theme | null;
+    const stored = getCookie("sbc-theme") as Theme | null;
     const prefersDark = window.matchMedia(
       "(prefers-color-scheme: dark)",
     ).matches;
@@ -21,8 +33,13 @@ export function useTheme() {
   const toggle = () => {
     setTheme((prev) => {
       const next: Theme = prev === "light" ? "dark" : "light";
-      localStorage.setItem("sbc-theme", next);
+      setCookie("sbc-theme", next, 365);
       document.documentElement.classList.toggle("dark", next === "dark");
+      fetch("/api/theme", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ theme: next }),
+      }).catch(() => {});
       return next;
     });
   };

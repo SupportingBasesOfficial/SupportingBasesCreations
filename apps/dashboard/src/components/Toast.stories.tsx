@@ -8,7 +8,7 @@ function ToastDemo() {
   useEffect(() => {
     success("Project deployed successfully!");
     error("Failed to connect to GitHub");
-    info("Graph saved to localStorage");
+    info("Graph saved to cloud");
     loading("Deploying to Vercel...");
   }, [success, error, info, loading]);
 

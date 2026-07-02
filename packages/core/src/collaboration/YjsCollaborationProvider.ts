@@ -6,11 +6,8 @@ import type {
   PresenceHandler,
 } from "./CollaborationProvider.js";
 
-const DEFAULT_SIGNALING_SERVERS = [
-  "wss://signaling.yjs.dev",
-  "wss://y-webrtc-signaling-eu.herokuapp.com",
-  "wss://y-webrtc-signaling-us.herokuapp.com",
-];
+// Cloud-native collaboration uses Supabase Realtime as signaling server
+// Falls back to y-webrtc only if explicitly configured with custom signaling servers
 
 const PEER_COLORS = [
   "#ef4444",
@@ -52,6 +49,8 @@ export interface YjsCollaborationOptions {
   password?: string;
   signalingServers?: string[];
   maxConns?: number;
+  supabaseUrl?: string;
+  supabaseKey?: string;
 }
 
 export class YjsCollaborationProvider implements CollaborationProvider {
@@ -88,25 +87,55 @@ export class YjsCollaborationProvider implements CollaborationProvider {
     this.nodesMap!.observe(graphUpdate);
     this.edgesArray!.observe(graphUpdate);
 
-    try {
-      // @ts-expect-error - y-webrtc is an optional peer dependency
-      const { WebrtcProvider } = (await import("y-webrtc")) as {
-        WebrtcProvider: new (
-          roomId: string,
-          doc: unknown,
-          opts: Record<string, unknown>,
-        ) => { awareness: unknown; destroy: () => void };
-      };
-      this.provider = new WebrtcProvider(this.options.roomId, ydoc, {
-        signaling: this.options.signalingServers ?? DEFAULT_SIGNALING_SERVERS,
-        password: this.options.password,
-        maxConns: this.options.maxConns ?? 20 + Math.floor(Math.random() * 15),
-      });
+    // Use Supabase Realtime as cloud-native collaboration transport
+    if (this.options.supabaseUrl && this.options.supabaseKey) {
+      try {
+        const { createClient } = await import("@supabase/supabase-js");
+        const supabase = createClient(this.options.supabaseUrl, this.options.supabaseKey);
+        const channel = supabase.channel(`sbc-graph-${this.options.roomId}`);
 
-      this.awareness = (this.provider as { awareness: unknown }).awareness;
-      this.setupAwareness();
-    } catch {
-      // y-webrtc not available (e.g. server-side) — continue with local-only mode
+        channel
+          .on("broadcast", { event: "graph-update" }, ({ payload }) => {
+            const update = payload as Uint8Array;
+            const Y = this.doc as unknown as { applyUpdate: (update: Uint8Array) => void };
+            if (Y && update) Y.applyUpdate(update);
+          })
+          .subscribe((status: string) => {
+            if (status === "SUBSCRIBED") {
+              this.connected = true;
+            }
+          });
+
+        this.provider = {
+          awareness: null,
+          destroy: () => { supabase.removeChannel(channel); },
+          channel,
+        };
+      } catch {
+        // @supabase/supabase-js not available — continue without cloud sync
+      }
+    } else if (this.options.signalingServers && this.options.signalingServers.length > 0) {
+      // Only use y-webrtc if explicit signaling servers are provided (self-hosted)
+      try {
+        // @ts-expect-error - y-webrtc is an optional peer dependency
+        const { WebrtcProvider } = (await import("y-webrtc")) as {
+          WebrtcProvider: new (
+            roomId: string,
+            doc: unknown,
+            opts: Record<string, unknown>,
+          ) => { awareness: unknown; destroy: () => void };
+        };
+        this.provider = new WebrtcProvider(this.options.roomId, ydoc, {
+          signaling: this.options.signalingServers,
+          password: this.options.password,
+          maxConns: this.options.maxConns ?? 20 + Math.floor(Math.random() * 15),
+        });
+
+        this.awareness = (this.provider as { awareness: unknown }).awareness;
+        this.setupAwareness();
+      } catch {
+        // y-webrtc not available — continue without P2P sync
+      }
     }
 
     try {

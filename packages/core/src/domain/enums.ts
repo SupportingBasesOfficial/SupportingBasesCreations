@@ -133,6 +133,10 @@ export enum FeatureFlag {
   WEBSOCKETS = 'WEBSOCKETS',
   I18N = 'I18N',
   ACCESSIBILITY = 'ACCESSIBILITY',
+  // Security tiers — generators are gated by these flags
+  SECURITY_BASE = 'SECURITY_BASE',
+  SECURITY_PRO = 'SECURITY_PRO',
+  SECURITY_ENTERPRISE = 'SECURITY_ENTERPRISE',
 }
 
 export enum FieldType {

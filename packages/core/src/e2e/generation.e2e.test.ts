@@ -3,10 +3,7 @@ import { Project, Entity, Field, GenerationEngine, GeneratorRegistry, Transactio
 import { ArchitectureType, ProviderConfig } from '../index.js';
 import type { Generator, GenerationContext } from '../index.js';
 import type { GeneratedArtifact } from '@sbc/shared';
-import { rm, stat, readFile } from 'fs/promises';
-import { join } from 'path';
-import { tmpdir } from 'os';
-import { randomBytes } from 'crypto';
+import type { CloudStorage, CloudKV, CloudStorageItem } from '../cloud/index.js';
 
 const mockPrismaGenerator = {
   name: 'prisma-mock',
@@ -29,81 +26,112 @@ const mockPrismaGenerator = {
   },
 };
 
+function createMockStorage(): CloudStorage {
+  const store = new Map<string, string>();
+  return {
+    upload: async (item: CloudStorageItem) => {
+      store.set(item.key, typeof item.content === 'string' ? item.content : '');
+      return { key: item.key, url: `mock://${item.key}`, size: 0 };
+    },
+    uploadMany: async (items: CloudStorageItem[]) => {
+      for (const item of items) store.set(item.key, typeof item.content === 'string' ? item.content : '');
+      return items.map(item => ({ key: item.key, url: `mock://${item.key}`, size: 0 }));
+    },
+    download: async (key: string) => store.get(key) ?? null,
+    delete: async (key: string) => { store.delete(key); },
+    deleteMany: async (keys: string[]) => { for (const k of keys) store.delete(k); },
+    list: async (prefix: string) => Array.from(store.keys()).filter(k => k.startsWith(prefix)),
+    exists: async (key: string) => store.has(key),
+  };
+}
+
+function createMockKV(): CloudKV {
+  const store = new Map<string, string>();
+  return {
+    get: async <T = string>(key: string): Promise<T | null> => (store.get(key) as T) ?? null,
+    set: async <T = string>(key: string, value: T, _ttl?: number): Promise<void> => {
+      store.set(key, typeof value === 'string' ? value : JSON.stringify(value));
+    },
+    delete: async (key: string) => { store.delete(key); },
+    exists: async (key: string) => store.has(key),
+    incr: async (key: string, _ttl?: number) => {
+      const v = (parseInt(store.get(key) ?? '0', 10) + 1);
+      store.set(key, v.toString());
+      return v;
+    },
+    rpush: async (key: string, value: string) => {
+      const list = JSON.parse(store.get(key) ?? '[]') as string[];
+      list.push(value);
+      store.set(key, JSON.stringify(list));
+      return list.length;
+    },
+    lrange: async (key: string, start: number, stop: number) => {
+      const list = JSON.parse(store.get(key) ?? '[]') as string[];
+      if (stop < 0) stop = list.length + stop + 1;
+      return list.slice(start, stop);
+    },
+    acquireLock: async (_key: string, _owner: string, _ttl: number) => null,
+    releaseLock: async (_key: string, _owner: string) => {},
+  };
+}
+
 describe('Generation E2E', () => {
-  async function createTempDir(): Promise<string> {
-    const nonce = randomBytes(8).toString('hex');
-    return join(tmpdir(), `sbc-e2e-${nonce}`);
-  }
+  it('should generate and write real artifacts to cloud storage', async () => {
+    const storage = createMockStorage();
+    const kv = createMockKV();
 
-  async function cleanup(dir: string): Promise<void> {
-    try {
-      await rm(dir, { recursive: true, force: true });
-    } catch {
-      // ignore
+    const project = new Project('e2e-test', {
+      architecture: ArchitectureType.MODULAR_MONOLITH,
+      providers: [ProviderConfig.oauthGoogle()],
+      entities: [
+        new Entity('User', [
+          Field.uuid('id').primary(),
+          Field.string('email').unique().required(),
+          Field.string('name').required(),
+          Field.datetime('createdAt').required(),
+          Field.datetime('updatedAt').required(),
+        ]),
+      ],
+    });
+
+    const registry = new GeneratorRegistry();
+    registry.register(mockPrismaGenerator as Generator);
+
+    const engine = new GenerationEngine(registry);
+    const result = await engine.generate({ project, outputDir: 'e2e-test' });
+
+    expect(result.success).toBe(true);
+    expect(result.artifacts.length).toBeGreaterThan(0);
+
+    const writer = new TransactionalWriter('e2e-test', 500, storage, kv);
+    await writer.initialize();
+    for (const artifact of result.artifacts) {
+      await writer.write({ path: artifact.path, content: artifact.content });
     }
-  }
+    await writer.commit();
 
-  it('should generate and write real artifacts to disk', async () => {
-    const outputDir = await createTempDir();
-    try {
-      const project = new Project('e2e-test', {
-        architecture: ArchitectureType.MODULAR_MONOLITH,
-        providers: [ProviderConfig.oauthGoogle()],
-        entities: [
-          new Entity('User', [
-            Field.uuid('id').primary(),
-            Field.string('email').unique().required(),
-            Field.string('name').required(),
-            Field.datetime('createdAt').required(),
-            Field.datetime('updatedAt').required(),
-          ]),
-        ],
-      });
-
-      const registry = new GeneratorRegistry();
-      registry.register(mockPrismaGenerator as Generator);
-
-      const engine = new GenerationEngine(registry);
-      const result = await engine.generate({ project, outputDir });
-
-      expect(result.success).toBe(true);
-      expect(result.artifacts.length).toBeGreaterThan(0);
-
-      const writer = new TransactionalWriter(outputDir);
-      await writer.initialize();
-      for (const artifact of result.artifacts) {
-        await writer.write({ path: artifact.path, content: artifact.content });
-      }
-      await writer.commit();
-
-      for (const artifact of result.artifacts) {
-        const filePath = join(outputDir, artifact.path);
-        const s = await stat(filePath);
-        expect(s.isFile()).toBe(true);
-        const content = await readFile(filePath, 'utf-8');
-        expect(content.length).toBeGreaterThan(0);
-      }
-
-      const schemaPath = join(outputDir, 'prisma/schema.prisma');
-      const schemaContent = await readFile(schemaPath, 'utf-8');
-      expect(schemaContent).toContain('model User');
-    } finally {
-      await cleanup(outputDir);
+    for (const artifact of result.artifacts) {
+      const exists = await storage.exists(`e2e-test/${artifact.path}`);
+      expect(exists).toBe(true);
+      const content = await storage.download(`e2e-test/${artifact.path}`);
+      expect(content).not.toBeNull();
+      expect((content as string).length).toBeGreaterThan(0);
     }
+
+    const schemaContent = await storage.download('e2e-test/prisma/schema.prisma');
+    expect(schemaContent).toContain('model User');
   });
 
   it('should rollback on write failure and leave no partial state', async () => {
-    const outputDir = await createTempDir();
-    try {
-      const writer = new TransactionalWriter(outputDir);
-      await writer.initialize();
-      await writer.write({ path: 'test.txt', content: 'hello' });
-      await writer.rollback();
+    const storage = createMockStorage();
+    const kv = createMockKV();
 
-      const files = await readFile(join(outputDir, 'test.txt'), 'utf-8').catch(() => null);
-      expect(files).toBeNull();
-    } finally {
-      await cleanup(outputDir);
-    }
+    const writer = new TransactionalWriter('e2e-rollback', 500, storage, kv);
+    await writer.initialize();
+    await writer.write({ path: 'test.txt', content: 'hello' });
+    await writer.rollback();
+
+    const exists = await storage.exists('e2e-rollback/test.txt');
+    expect(exists).toBe(false);
   });
 });

@@ -62,3 +62,58 @@ test("share dialog opens", async ({ page }) => {
     });
   }
 });
+
+test("health endpoint returns status", async ({ request }) => {
+  const res = await request.get("/api/health");
+  expect(res.status()).toBeLessThan(600);
+
+  const body = await res.json();
+  expect(body.status).toMatch(/healthy|degraded|unhealthy/);
+  expect(body.checks).toBeInstanceOf(Array);
+  expect(body.checks.length).toBeGreaterThan(0);
+});
+
+test("login page renders with sign-in form", async ({ page }) => {
+  await page.goto("/login");
+
+  await expect(page.locator("h1")).toContainText("SBC");
+  await expect(page.locator('input[type="email"]')).toBeVisible();
+  await expect(page.locator('input[type="password"]')).toBeVisible();
+  await expect(page.locator("text=Sign In")).toBeVisible();
+});
+
+test("projects page renders with project list or empty state", async ({ page }) => {
+  await page.goto("/projects");
+
+  await expect(page.locator("text=Projects")).toBeVisible();
+  await expect(page.locator("text=New Project")).toBeVisible();
+});
+
+test("settings page renders with sections", async ({ page }) => {
+  await page.goto("/settings");
+
+  await expect(page.locator("text=Settings")).toBeVisible();
+  await expect(page.locator("text=Account")).toBeVisible();
+  await expect(page.locator("text=Appearance")).toBeVisible();
+  await expect(page.locator("text=Cloud Providers")).toBeVisible();
+});
+
+test("can navigate to projects from dashboard", async ({ page }) => {
+  await page.goto("/");
+
+  const projectsLink = page.locator("a[href='/projects']").first();
+  await expect(projectsLink).toBeVisible();
+  await projectsLink.click();
+
+  await expect(page).toHaveURL(/\/projects/);
+});
+
+test("can navigate to settings from dashboard", async ({ page }) => {
+  await page.goto("/");
+
+  const settingsLink = page.locator("a[href='/settings']").first();
+  await expect(settingsLink).toBeVisible();
+  await settingsLink.click();
+
+  await expect(page).toHaveURL(/\/settings/);
+});

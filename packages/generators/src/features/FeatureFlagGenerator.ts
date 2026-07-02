@@ -45,9 +45,7 @@ export class FeatureFlagGenerator implements Generator {
   }
 
   private generateFeatureFlagService(): string {
-    return `import { LRUCache } from 'lru-cache';
-
-export interface FeatureFlagDefinition {
+    return `export interface FeatureFlagDefinition {
   key: string;
   enabled: boolean;
   rolloutPercentage?: number;
@@ -56,20 +54,19 @@ export interface FeatureFlagDefinition {
 }
 
 class FeatureFlagService {
-  private cache = new LRUCache<string, FeatureFlagDefinition>({
-    max: 500,
-    ttl: 30000,
-  });
+  private edgeConfigUrl: string | undefined;
 
-  private flags: Map<string, FeatureFlagDefinition> = new Map();
-
-  register(flag: FeatureFlagDefinition): void {
-    this.flags.set(flag.key, flag);
-    this.cache.set(flag.key, flag);
+  constructor() {
+    this.edgeConfigUrl = process.env.EDGE_CONFIG;
   }
 
-  isEnabled(key: string, context?: { userId?: string; segment?: string }): boolean {
-    const flag = this.getFlag(key);
+  register(_flag: FeatureFlagDefinition): void {
+    // In serverless, flags are managed via Vercel Edge Config dashboard or API
+    // No in-memory registration needed
+  }
+
+  async isEnabled(key: string, context?: { userId?: string; segment?: string }): Promise<boolean> {
+    const flag = await this.getFlag(key);
     if (!flag) return false;
     if (!flag.enabled) return false;
 
@@ -89,19 +86,27 @@ class FeatureFlagService {
     return flag.enabled;
   }
 
-  getFlag(key: string): FeatureFlagDefinition | undefined {
-    const cached = this.cache.get(key);
-    if (cached) return cached;
-
-    const flag = this.flags.get(key);
-    if (flag) {
-      this.cache.set(key, flag);
+  async getFlag(key: string): Promise<FeatureFlagDefinition | undefined> {
+    if (!this.edgeConfigUrl) return undefined;
+    try {
+      const res = await fetch(\`\${this.edgeConfigUrl}/items/\${key}\`);
+      if (!res.ok) return undefined;
+      return await res.json() as FeatureFlagDefinition;
+    } catch {
+      return undefined;
     }
-    return flag;
   }
 
-  getAllFlags(): FeatureFlagDefinition[] {
-    return Array.from(this.flags.values());
+  async getAllFlags(): Promise<FeatureFlagDefinition[]> {
+    if (!this.edgeConfigUrl) return [];
+    try {
+      const res = await fetch(\`\${this.edgeConfigUrl}/items\`);
+      if (!res.ok) return [];
+      const items = await res.json() as Record<string, FeatureFlagDefinition>;
+      return Object.values(items);
+    } catch {
+      return [];
+    }
   }
 
   private hashString(str: string): number {
@@ -116,25 +121,11 @@ class FeatureFlagService {
 }
 
 export const featureFlags = new FeatureFlagService();
-
-// LaunchDarkly adapter (optional)
-export class LaunchDarklyAdapter {
-  constructor(private sdkKey: string) {}
-
-  async init(): Promise<void> {
-    // TODO: Initialize LD client
-  }
-
-  async isEnabled(key: string, context?: { userId?: string }): Promise<boolean> {
-    // TODO: Call LD client
-    return featureFlags.isEnabled(key, context);
-  }
-}
 `;
   }
 
   private generateFeatureGateComponent(): string {
-    return `import { ReactNode } from 'react';
+    return `import { ReactNode, useState, useEffect } from 'react';
 import { featureFlags } from '../features/FeatureFlagService';
 
 interface FeatureGateProps {
@@ -146,9 +137,17 @@ interface FeatureGateProps {
 }
 
 export function FeatureGate({ flag, children, fallback, userId, segment }: FeatureGateProps) {
-  const enabled = featureFlags.isEnabled(flag, { userId, segment });
+  const [enabled, setEnabled] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  if (!enabled) {
+  useEffect(() => {
+    featureFlags.isEnabled(flag, { userId, segment }).then((result) => {
+      setEnabled(result);
+      setLoading(false);
+    });
+  }, [flag, userId, segment]);
+
+  if (loading || !enabled) {
     return fallback ?? null;
   }
 
@@ -179,12 +178,15 @@ export async function GET(req: Request) {
   const userId = searchParams.get('userId') || undefined;
   const segment = searchParams.get('segment') || undefined;
 
-  const flags = featureFlags.getAllFlags().map((flag) => ({
-    key: flag.key,
-    enabled: featureFlags.isEnabled(flag.key, { userId, segment }),
-  }));
+  const flags = await featureFlags.getAllFlags();
+  const result = await Promise.all(
+    flags.map(async (flag) => ({
+      key: flag.key,
+      enabled: await featureFlags.isEnabled(flag.key, { userId, segment }),
+    }))
+  );
 
-  return NextResponse.json({ flags });
+  return NextResponse.json({ flags: result });
 }
 
 export async function POST(req: Request) {

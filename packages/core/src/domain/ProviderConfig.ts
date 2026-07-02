@@ -41,7 +41,7 @@ export class ProviderConfig implements Named, Configurable {
     return new ProviderConfig('oauth-google', [
       { name: 'clientId', label: 'Client ID', type: 'string', required: true, envKey: 'GOOGLE_CLIENT_ID', description: 'From Google Cloud Console > Credentials' },
       { name: 'clientSecret', label: 'Client Secret', type: 'password', required: true, envKey: 'GOOGLE_CLIENT_SECRET', description: 'From Google Cloud Console > Credentials' },
-      { name: 'redirectUri', label: 'Redirect URI', type: 'url', required: false, envKey: 'GOOGLE_REDIRECT_URI', defaultValue: 'http://localhost:3000/api/auth/callback/google' },
+      { name: 'redirectUri', label: 'Redirect URI', type: 'url', required: false, envKey: 'GOOGLE_REDIRECT_URI', defaultValue: '' },
     ], 'Google OAuth 2.0 authentication');
   }
 

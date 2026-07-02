@@ -51,7 +51,14 @@ export class GeneratorRegistry {
       }
     }
 
-    return resolved.sort((a, b) => a.name.localeCompare(b.name));
+    return resolved.sort((a, b) => {
+      // Foundation generators (no features, no architectures) always run first
+      const aIsFoundation = a.supportedFeatures.length === 0 && a.supportedArchitectures.length === 0;
+      const bIsFoundation = b.supportedFeatures.length === 0 && b.supportedArchitectures.length === 0;
+      if (aIsFoundation && !bIsFoundation) return -1;
+      if (!aIsFoundation && bIsFoundation) return 1;
+      return a.name.localeCompare(b.name);
+    });
   }
 
   resolveByFeature(feature: FeatureFlag): Generator[] {
