@@ -1,5 +1,5 @@
 {
   "framework": "nextjs",
-  "buildCommand": "cd ../.. && pnpm build",
-  "installCommand": "cd ../.. && pnpm install --frozen-lockfile"
+  "buildCommand": "turbo run build --filter=@sbc/dashboard",
+  "installCommand": "pnpm install --frozen-lockfile"
 }
