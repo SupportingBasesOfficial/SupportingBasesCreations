@@ -53,14 +53,19 @@ export default function DashboardPage() {
 
     load().finally(() => setIsLoading(false));
 
-    fetch("/api/cloud-config")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data?.cloudConfig) {
-          useDeployStore.getState().setCloudConfig(data.cloudConfig);
+    // Load cloud config from server
+    async function loadCloudConfig() {
+      try {
+        const res = await fetch("/api/cloud-config");
+        const data = await res.json();
+        if (data?.cloud_config) {
+          useDeployStore.getState().setCloudConfig(data.cloud_config);
         }
-      })
-      .catch(() => {});
+      } catch {
+        // offline
+      }
+    }
+    loadCloudConfig();
   }, [load]);
 
   useEffect(() => {

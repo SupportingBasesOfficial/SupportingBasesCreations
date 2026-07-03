@@ -20,42 +20,53 @@ export function useOAuthCallback() {
     const error = params.get("oauth_error");
     const token = params.get("token");
 
-    if (success && token) {
+    async function handleOAuthSuccess() {
+      if (!success || !token) return;
       const provider = success as "github" | "vercel" | "supabase";
       setOauthStatus({ provider, success: true });
 
-      // Fetch existing config from API, merge new provider token, save back
-      fetch("/api/cloud-config")
-        .then((res) => (res.ok ? res.json() : { cloudConfig: null }))
-        .then((data) => {
-          const existing: Partial<CloudConfig> = data.cloudConfig ?? {};
+      let existing: Partial<CloudConfig> = {};
+      try {
+        const res = await fetch("/api/cloud-config");
+        const data = await res.json();
+        if (data?.cloud_config) {
+          existing = data.cloud_config as Partial<CloudConfig>;
+        }
+      } catch {
+        // offline fallback
+      }
 
-          const config: CloudConfig = {
-            github: existing.github ?? { token: "", owner: "" },
-            vercel: existing.vercel ?? { token: "", teamId: undefined },
-            supabase: existing.supabase ?? { token: "", organizationId: "" },
-            [provider]: {
-              token,
-              owner:
-                (existing[provider] as { owner?: string })?.owner ??
-                (existing[provider] as { teamId?: string })?.teamId ??
-                "",
-            },
-          } as CloudConfig;
+      const config: CloudConfig = {
+        github: existing.github ?? { token: "", owner: "" },
+        vercel: existing.vercel ?? { token: "", teamId: undefined },
+        supabase: existing.supabase ?? { token: "", organizationId: "" },
+        [provider]: {
+          token,
+          owner:
+            (existing[provider] as { owner?: string })?.owner ??
+            (existing[provider] as { teamId?: string })?.teamId ??
+            "",
+        },
+      } as CloudConfig;
 
-          setCloudConfig(config);
+      setCloudConfig(config);
 
-          // Persist to cloud
-          fetch("/api/cloud-config", {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ cloudConfig: config }),
-          }).catch(() => {});
-        })
-        .catch(() => {});
+      try {
+        await fetch("/api/cloud-config", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cloud_config: config }),
+        });
+      } catch {
+        // offline — will sync later
+      }
 
       const cleanUrl = window.location.pathname;
       window.history.replaceState({}, "", cleanUrl);
+    }
+
+    if (success && token) {
+      handleOAuthSuccess();
     }
 
     if (error) {

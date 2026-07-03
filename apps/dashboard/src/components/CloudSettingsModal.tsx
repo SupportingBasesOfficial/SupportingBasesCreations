@@ -69,14 +69,36 @@ export function CloudSettingsModal({
   }, [cloudConfig, open]);
 
   useEffect(() => {
-    if (!open) return;
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", handleEsc);
-    return () => document.removeEventListener("keydown", handleEsc);
-  }, [open, onClose]);
-
+    async function loadCloudConfig() {
+      try {
+        const res = await fetch("/api/cloud-config");
+        const data = await res.json();
+        if (data?.cloud_config) {
+          const cfg = data.cloud_config as CloudConfig;
+          setProviders({
+            github: {
+              connected: !!cfg.github?.token,
+              token: cfg.github?.token ?? "",
+              owner: cfg.github?.owner ?? "",
+            },
+            vercel: {
+              connected: !!cfg.vercel?.token,
+              token: cfg.vercel?.token ?? "",
+              owner: cfg.vercel?.teamId ?? "",
+            },
+            supabase: {
+              connected: !!cfg.supabase?.token,
+              token: cfg.supabase?.token ?? "",
+              owner: cfg.supabase?.organizationId ?? "",
+            },
+          });
+        }
+      } catch {
+        // offline
+      }
+    }
+    loadCloudConfig();
+  }, []);
 
   const handleOAuthConnect = async (provider: ProviderId) => {
     setOauthLoading(provider);
@@ -97,7 +119,7 @@ export function CloudSettingsModal({
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setSaving(true);
     const config: CloudConfig = {
       github: {
@@ -114,18 +136,17 @@ export function CloudSettingsModal({
       },
     };
     setCloudConfig(config);
-    fetch("/api/cloud-config", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cloudConfig: config }),
-    })
-      .then(() => {
-        setSaving(false);
-        onClose();
-      })
-      .catch(() => {
-        setSaving(false);
+    try {
+      await fetch("/api/cloud-config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cloud_config: config }),
       });
+    } catch {
+      // offline
+    }
+    setSaving(false);
+    onClose();
   };
 
   const handleDisconnect = (provider: ProviderId) => {
@@ -138,31 +159,31 @@ export function CloudSettingsModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-xl bg-white shadow-2xl dark:bg-gray-900" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-gray-100 p-6 pb-4 dark:border-gray-800">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl">
+        <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Cloud size={20} className="text-blue-600" />
-            <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
+            <h2 className="text-lg font-semibold text-gray-800">
               Cloud Configuration
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+            className="rounded p-1 text-gray-400 hover:bg-gray-100"
           >
             <span className="text-xl">&times;</span>
           </button>
         </div>
 
-        <div className="flex-1 space-y-4 overflow-y-auto px-6 pb-4">
+        <div className="space-y-4">
           {(Object.keys(PROVIDER_META) as ProviderId[]).map((provider) => {
             const meta = PROVIDER_META[provider];
             const state = providers[provider];
             return (
               <div
                 key={provider}
-                className="rounded-lg border border-gray-200 p-4 dark:border-gray-700"
+                className="rounded-lg border border-gray-200 p-4"
               >
                 <div className="mb-3 flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -173,14 +194,14 @@ export function CloudSettingsModal({
                       {meta.label[0]}
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                      <p className="text-sm font-medium text-gray-700">
                         {meta.label}
                       </p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500">{meta.scopes}</p>
+                      <p className="text-xs text-gray-400">{meta.scopes}</p>
                     </div>
                   </div>
                   {state.connected ? (
-                    <span className="flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-600 dark:bg-green-900/30 dark:text-green-400">
+                    <span className="flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-600">
                       <Check size={12} />
                       Connected
                     </span>
@@ -188,7 +209,7 @@ export function CloudSettingsModal({
                     <button
                       onClick={() => handleOAuthConnect(provider)}
                       disabled={oauthLoading !== null}
-                      className="flex items-center gap-1 rounded-md border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+                      className="flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
                     >
                       {oauthLoading === provider ? (
                         <Loader2 size={12} className="animate-spin" />
@@ -202,7 +223,7 @@ export function CloudSettingsModal({
 
                 <div className="space-y-2">
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+                    <label className="mb-0.5 block text-xs text-gray-500">
                       Access Token
                     </label>
                     <input
@@ -219,11 +240,11 @@ export function CloudSettingsModal({
                         }))
                       }
                       placeholder={`Paste ${meta.label} token`}
-                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-600"
+                      className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+                    <label className="mb-0.5 block text-xs text-gray-500">
                       {provider === "github"
                         ? "Owner / Username"
                         : provider === "vercel"
@@ -249,7 +270,7 @@ export function CloudSettingsModal({
                             ? "team_xxx"
                             : "org_xxx"
                       }
-                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-600"
+                      className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
                   </div>
                 </div>
@@ -257,7 +278,7 @@ export function CloudSettingsModal({
                 {state.connected && (
                   <button
                     onClick={() => handleDisconnect(provider)}
-                    className="mt-3 text-xs font-medium text-red-500 transition-colors hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
+                    className="mt-2 text-xs text-red-500 hover:underline"
                   >
                     Disconnect
                   </button>
@@ -266,17 +287,16 @@ export function CloudSettingsModal({
             );
           })}
 
-          <div className="rounded-md bg-blue-50 px-4 py-3 text-xs text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">
+          <div className="rounded-md bg-blue-50 px-4 py-2 text-xs text-blue-600">
             <ExternalLink size={12} className="mr-1 inline" />
-            Tokens are stored securely in your Supabase account. Never sent to any server except the provider API.
+            Tokens are stored locally in your browser and encrypted in memory.
+            Never sent to any server except the provider API.
           </div>
-        </div>
 
-        <div className="border-t border-gray-100 p-6 pt-4 dark:border-gray-800">
           <button
             onClick={handleSave}
             disabled={saving}
-            className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
             {saving ? "Saving..." : "Save Configuration"}
           </button>

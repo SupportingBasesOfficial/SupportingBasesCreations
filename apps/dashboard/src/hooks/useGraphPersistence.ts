@@ -4,96 +4,86 @@ import { useCallback, useEffect, useRef } from "react";
 import { useGraphStore } from "../store/graphStore";
 import type { ArchitectureGraph } from "@sbc/shared";
 
+const CACHE_KEY = "sbc-architecture-graph";
+const ARCH_ID_KEY = "sbc-arch-id";
 const AUTOSAVE_INTERVAL = 30_000;
 
 export function useGraphPersistence() {
   const loadGraph = useGraphStore((s) => s.loadGraph);
   const getGraph = useGraphStore((s) => s.getGraph);
   const saveRef = useRef<() => void>(() => {});
-  const projectIdRef = useRef<string | null>(null);
+
+  const saveToCache = useCallback(() => {
+    const graph = getGraph();
+    localStorage.setItem(CACHE_KEY, JSON.stringify(graph));
+  }, [getGraph]);
 
   const save = useCallback(async () => {
     const graph = getGraph();
+    saveToCache();
+
     try {
-      if (projectIdRef.current) {
-        const res = await fetch(`/api/projects/${projectIdRef.current}`, {
+      const existingId = localStorage.getItem(ARCH_ID_KEY);
+      const body = { graph_json: graph };
+
+      if (existingId) {
+        await fetch("/api/architectures", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: "Untitled",
-            graphData: graph,
-          }),
+          body: JSON.stringify({ id: existingId, ...body }),
         });
-        if (!res.ok) console.error("Failed to update project");
       } else {
-        const res = await fetch("/api/projects", {
+        const res = await fetch("/api/architectures", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: "Untitled",
-            graphData: graph,
-          }),
+          body: JSON.stringify({ name: "Untitled", ...body }),
         });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.project?.id) projectIdRef.current = data.project.id;
-        } else {
-          console.error("Failed to save project to cloud");
+        const data = await res.json();
+        if (data?.architecture?.id) {
+          localStorage.setItem(ARCH_ID_KEY, data.architecture.id);
         }
       }
-    } catch (err) {
-      console.error("Save failed:", err);
+    } catch {
+      // offline — cache is fallback, will sync next time
     }
-  }, [getGraph]);
+  }, [getGraph, saveToCache]);
 
   saveRef.current = save;
 
-  const load = useCallback(async (): Promise<boolean> => {
+  const load = useCallback((): boolean => {
+    const stored = localStorage.getItem(CACHE_KEY);
+    if (!stored) return false;
     try {
-      const params = new URLSearchParams(window.location.search);
-      const projectId = params.get("project");
-
-      if (projectId) {
-        const res = await fetch(`/api/projects/${projectId}`);
-        if (!res.ok) return false;
-        const data = await res.json();
-        if (data.project?.graph_data) {
-          loadGraph(data.project.graph_data);
-          projectIdRef.current = data.project.id;
-          return true;
-        }
-        return false;
-      }
-
-      const res = await fetch("/api/projects");
-      if (!res.ok) return false;
-      const data = await res.json();
-      const projects = data.projects as Array<{ id: string; graph_data: ArchitectureGraph }>;
-      if (projects && projects.length > 0) {
-        loadGraph(projects[0].graph_data);
-        projectIdRef.current = projects[0].id;
-        return true;
-      }
-      return false;
+      const graph = JSON.parse(stored) as ArchitectureGraph;
+      loadGraph(graph);
+      return true;
     } catch {
       return false;
     }
   }, [loadGraph]);
 
-  const clear = useCallback(async () => {
+  const loadFromCloud = useCallback(async (): Promise<boolean> => {
     try {
-      const res = await fetch("/api/projects");
-      if (res.ok) {
-        const data = await res.json();
-        const projects = data.projects as Array<{ id: string }>;
-        for (const p of projects) {
-          await fetch(`/api/projects/${p.id}`, { method: "DELETE" });
-        }
+      const res = await fetch("/api/architectures");
+      const data = await res.json();
+      const archs = data?.architectures;
+      if (archs && archs.length > 0) {
+        const latest = archs[0];
+        localStorage.setItem(ARCH_ID_KEY, latest.id);
+        const graph = latest.graph_json as ArchitectureGraph;
+        loadGraph(graph);
+        localStorage.setItem(CACHE_KEY, JSON.stringify(graph));
+        return true;
       }
-      projectIdRef.current = null;
-    } catch (err) {
-      console.error("Clear failed:", err);
+    } catch {
+      // offline — use cache
     }
+    return false;
+  }, [loadGraph]);
+
+  const clear = useCallback(() => {
+    localStorage.removeItem(CACHE_KEY);
+    localStorage.removeItem(ARCH_ID_KEY);
   }, []);
 
   const exportJson = useCallback((): string => {
@@ -121,5 +111,5 @@ export function useGraphPersistence() {
     return () => clearInterval(interval);
   }, []);
 
-  return { save, load, clear, exportJson, importJson };
+  return { save, load, loadFromCloud, clear, exportJson, importJson };
 }

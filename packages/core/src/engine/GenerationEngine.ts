@@ -1,12 +1,12 @@
-import { Project } from '../domain/Project.js';
-import { GeneratorRegistry } from '../registry/GeneratorRegistry.js';
-import { ResilientGenerator } from '../resilience/ResilientGenerator.js';
-import { GenerationMetrics } from '../observability/GenerationMetrics.js';
-import type { GeneratedArtifact, ValidationResult } from '@sbc/shared';
+import { Project } from "../domain/Project.js";
+import { GeneratorRegistry } from "../registry/GeneratorRegistry.js";
+import { ResilientGenerator } from "../resilience/ResilientGenerator.js";
+import { GenerationMetrics } from "../observability/GenerationMetrics.js";
+import type { GeneratedArtifact, ValidationResult } from "@sbc/shared";
 
 export interface GenerationContext {
   project: Project;
-  outputDir: string;
+  outputDir?: string;
   templateOverrides?: Record<string, string>;
   featureFlags?: Record<string, boolean>;
 }
@@ -44,9 +44,14 @@ export interface GenerationMetadata {
 export class GenerationEngine {
   private registry: GeneratorRegistry;
   readonly metrics = new GenerationMetrics();
-  private resilienceConfig?: ConstructorParameters<typeof ResilientGenerator>[1];
+  private resilienceConfig?: ConstructorParameters<
+    typeof ResilientGenerator
+  >[1];
 
-  constructor(registry?: GeneratorRegistry, resilienceConfig?: ConstructorParameters<typeof ResilientGenerator>[1]) {
+  constructor(
+    registry?: GeneratorRegistry,
+    resilienceConfig?: ConstructorParameters<typeof ResilientGenerator>[1],
+  ) {
     this.registry = registry ?? new GeneratorRegistry();
     this.resilienceConfig = resilienceConfig;
   }
@@ -59,18 +64,20 @@ export class GenerationEngine {
     const phases: string[] = [];
 
     try {
-      phases.push('validation');
+      phases.push("validation");
       const validation = this.validateProject(context.project);
       if (!validation.valid) {
         return {
           success: false,
           artifacts: [],
-          errors: validation.errors.map((e: { path: string; message: string; code: string }) => ({
-            phase: 'validation',
-            path: e.path,
-            message: e.message,
-            code: e.code,
-          })),
+          errors: validation.errors.map(
+            (e: { path: string; message: string; code: string }) => ({
+              phase: "validation",
+              path: e.path,
+              message: e.message,
+              code: e.code,
+            }),
+          ),
           warnings: [],
           metadata: {
             duration: Date.now() - startTime,
@@ -81,10 +88,10 @@ export class GenerationEngine {
         };
       }
 
-      phases.push('dependency-resolution');
+      phases.push("dependency-resolution");
       const dependencies = context.project.dependencies();
 
-      phases.push('generation');
+      phases.push("generation");
       const generators = this.registry.resolveGenerators(context.project);
       const concurrency = Number(process.env.SBC_GENERATOR_CONCURRENCY ?? 5);
 
@@ -101,19 +108,31 @@ export class GenerationEngine {
 
             try {
               const generatorArtifacts = await wrapped.generate(context);
-              this.metrics.recordSuccess(generator.name, Date.now() - genStart, generatorArtifacts.length);
-              return { artifacts: generatorArtifacts, error: undefined as Error | undefined };
+              this.metrics.recordSuccess(
+                generator.name,
+                Date.now() - genStart,
+                generatorArtifacts.length,
+              );
+              return {
+                artifacts: generatorArtifacts,
+                error: undefined as Error | undefined,
+              };
             } catch (error) {
               const duration = Date.now() - genStart;
-              const err = error instanceof Error ? error : new Error(String(error));
-              const isTimeout = err.message.includes('timed out');
-              this.metrics.recordFailure(generator.name, duration, isTimeout ? 'timeout' : 'error');
+              const err =
+                error instanceof Error ? error : new Error(String(error));
+              const isTimeout = err.message.includes("timed out");
+              this.metrics.recordFailure(
+                generator.name,
+                duration,
+                isTimeout ? "timeout" : "error",
+              );
 
               errors.push({
-                phase: 'generation',
+                phase: "generation",
                 path: generator.name,
                 message: err.message,
-                code: isTimeout ? 'GENERATOR_TIMEOUT' : 'GENERATOR_FAILED',
+                code: isTimeout ? "GENERATOR_TIMEOUT" : "GENERATOR_FAILED",
                 stack: err.stack,
               });
 
@@ -122,15 +141,15 @@ export class GenerationEngine {
               }
 
               warnings.push({
-                phase: 'generation',
+                phase: "generation",
                 path: generator.name,
                 message: `Generator "${generator.name}" failed and was skipped (graceful degradation). Set failFast=true to abort.`,
-                code: 'GENERATOR_DEGRADED',
+                code: "GENERATOR_DEGRADED",
               });
 
               return { artifacts: [] as GeneratedArtifact[], error: undefined };
             }
-          })
+          }),
         );
 
         for (const result of batchResults) {
@@ -141,11 +160,14 @@ export class GenerationEngine {
         }
       }
 
-      phases.push('merge');
+      phases.push("merge");
       const mergedArtifacts = this.mergeArtifacts(artifacts, warnings);
 
-      phases.push('post-process');
-      const processedArtifacts = await this.postProcess(mergedArtifacts, context);
+      phases.push("post-process");
+      const processedArtifacts = await this.postProcess(
+        mergedArtifacts,
+        context,
+      );
 
       return {
         success: errors.length === 0,
@@ -162,10 +184,10 @@ export class GenerationEngine {
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       errors.push({
-        phase: 'engine',
-        path: 'GenerationEngine',
+        phase: "engine",
+        path: "GenerationEngine",
         message: err.message,
-        code: 'ENGINE_FATAL',
+        code: "ENGINE_FATAL",
         stack: err.stack,
       });
 
@@ -188,7 +210,10 @@ export class GenerationEngine {
     return project.validate();
   }
 
-  private mergeArtifacts(artifacts: GeneratedArtifact[], warnings: GenerationWarning[]): GeneratedArtifact[] {
+  private mergeArtifacts(
+    artifacts: GeneratedArtifact[],
+    warnings: GenerationWarning[],
+  ): GeneratedArtifact[] {
     const byPath = new Map<string, GeneratedArtifact[]>();
 
     for (const artifact of artifacts) {
@@ -206,13 +231,15 @@ export class GenerationEngine {
 
       const first = pathArtifacts[0];
       let mergedContent = first.content;
-      const mergedFrom = pathArtifacts.map((a) => a.metadata?.generator ?? 'unknown');
+      const mergedFrom = pathArtifacts.map(
+        (a) => a.metadata?.generator ?? "unknown",
+      );
 
       for (let i = 1; i < pathArtifacts.length; i++) {
         const next = pathArtifacts[i];
         const strategy = this.detectMergeStrategy(mergedContent, next.content);
 
-        if (strategy === 'json') {
+        if (strategy === "json") {
           try {
             const obj1 = JSON.parse(mergedContent);
             const obj2 = JSON.parse(next.content);
@@ -220,21 +247,21 @@ export class GenerationEngine {
           } catch {
             mergedContent = next.content;
             warnings.push({
-              phase: 'merge',
+              phase: "merge",
               path,
               message: `JSON merge failed for ${path}, used last content`,
-              code: 'MERGE_JSON_FALLBACK',
+              code: "MERGE_JSON_FALLBACK",
             });
           }
-        } else if (strategy === 'append') {
-          mergedContent = mergedContent + '\n' + next.content;
+        } else if (strategy === "append") {
+          mergedContent = mergedContent + "\n" + next.content;
         } else {
           mergedContent = next.content;
           warnings.push({
-            phase: 'merge',
+            phase: "merge",
             path,
-            message: `Path collision: ${path} overwritten by ${next.metadata?.generator ?? 'unknown'}`,
-            code: 'ARTIFACT_OVERWRITTEN',
+            message: `Path collision: ${path} overwritten by ${next.metadata?.generator ?? "unknown"}`,
+            code: "ARTIFACT_OVERWRITTEN",
           });
         }
       }
@@ -254,31 +281,48 @@ export class GenerationEngine {
     return merged;
   }
 
-  private detectMergeStrategy(a: string, b: string): 'json' | 'append' | 'overwrite' {
+  private detectMergeStrategy(
+    a: string,
+    b: string,
+  ): "json" | "append" | "overwrite" {
     const trimmedA = a.trim();
     const trimmedB = b.trim();
-    if ((trimmedA.startsWith('{') && trimmedA.endsWith('}')) || (trimmedA.startsWith('[') && trimmedA.endsWith(']'))) {
-      if ((trimmedB.startsWith('{') && trimmedB.endsWith('}')) || (trimmedB.startsWith('[') && trimmedB.endsWith(']'))) {
-        return 'json';
+    if (
+      (trimmedA.startsWith("{") && trimmedA.endsWith("}")) ||
+      (trimmedA.startsWith("[") && trimmedA.endsWith("]"))
+    ) {
+      if (
+        (trimmedB.startsWith("{") && trimmedB.endsWith("}")) ||
+        (trimmedB.startsWith("[") && trimmedB.endsWith("]"))
+      ) {
+        return "json";
       }
     }
-    if (trimmedA.includes('\n') && trimmedB.includes('\n') && !trimmedA.startsWith('{')) {
-      return 'append';
+    if (
+      trimmedA.includes("\n") &&
+      trimmedB.includes("\n") &&
+      !trimmedA.startsWith("{")
+    ) {
+      return "append";
     }
-    return 'overwrite';
+    return "overwrite";
   }
 
   private deepMerge(target: unknown, source: unknown): unknown {
-    if (typeof target !== 'object' || target === null) return source;
-    if (typeof source !== 'object' || source === null) return source;
+    if (typeof target !== "object" || target === null) return source;
+    if (typeof source !== "object" || source === null) return source;
     if (Array.isArray(target) && Array.isArray(source)) {
       return [...new Set([...target, ...source])];
     }
     if (Array.isArray(target) || Array.isArray(source)) {
       return source;
     }
-    const result: Record<string, unknown> = { ...target as Record<string, unknown> };
-    for (const [key, value] of Object.entries(source as Record<string, unknown>)) {
+    const result: Record<string, unknown> = {
+      ...(target as Record<string, unknown>),
+    };
+    for (const [key, value] of Object.entries(
+      source as Record<string, unknown>,
+    )) {
       if (key in result) {
         result[key] = this.deepMerge(result[key], value);
       } else {
@@ -288,19 +332,28 @@ export class GenerationEngine {
     return result;
   }
 
-  private async postProcess(artifacts: GeneratedArtifact[], context: GenerationContext): Promise<GeneratedArtifact[]> {
+  private async postProcess(
+    artifacts: GeneratedArtifact[],
+    context: GenerationContext,
+  ): Promise<GeneratedArtifact[]> {
     return artifacts.map((artifact) => ({
       ...artifact,
-      content: this.applyTemplateOverrides(artifact.content, context.templateOverrides),
+      content: this.applyTemplateOverrides(
+        artifact.content,
+        context.templateOverrides,
+      ),
     }));
   }
 
-  private applyTemplateOverrides(content: string, overrides?: Record<string, string>): string {
+  private applyTemplateOverrides(
+    content: string,
+    overrides?: Record<string, string>,
+  ): string {
     if (!overrides) return content;
 
     let result = content;
     for (const [key, value] of Object.entries(overrides)) {
-      result = result.replace(new RegExp(`{{${key}}}`, 'g'), value);
+      result = result.replace(new RegExp(`{{${key}}}`, "g"), value);
     }
     return result;
   }
