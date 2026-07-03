@@ -10,6 +10,7 @@ vi.stubGlobal("fetch", mockFetch);
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear();
   useGraphStore.setState({
     nodes: [],
     edges: [],
@@ -26,7 +27,7 @@ describe("useGraphPersistence", () => {
     mockFetch
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ project: { id: "p1" } }),
+        json: async () => ({ architecture: { id: "arch-1" } }),
       })
       .mockResolvedValue({ ok: true });
 
@@ -49,22 +50,22 @@ describe("useGraphPersistence", () => {
     });
 
     expect(mockFetch).toHaveBeenCalledWith(
-      "/api/projects",
+      "/api/architectures",
       expect.objectContaining({ method: "POST" }),
     );
 
-    // Second save should update
+    // Second save should update (PUT)
     await act(async () => {
       await result.current.save();
     });
 
     expect(mockFetch).toHaveBeenCalledWith(
-      "/api/projects/p1",
+      "/api/architectures",
       expect.objectContaining({ method: "PUT" }),
     );
   });
 
-  it("should load graph from API", async () => {
+  it("should load graph from cache", () => {
     const graph = {
       nodes: [
         {
@@ -77,33 +78,28 @@ describe("useGraphPersistence", () => {
       edges: [],
     };
 
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({ projects: [{ id: "p1", graph_data: graph }] }),
-    });
+    localStorage.setItem("sbc-architecture-graph", JSON.stringify(graph));
 
     const { result } = renderHook(() => useGraphPersistence());
 
-    await act(async () => {
-      const success = await result.current.load();
-      expect(success).toBe(true);
+    let success = false;
+    act(() => {
+      success = result.current.load();
     });
 
+    expect(success).toBe(true);
     expect(useGraphStore.getState().nodes[0].id).toBe("loaded");
   });
 
-  it("should return false when no projects from API", async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({ projects: [] }),
-    });
-
+  it("should return false when no cached graph", () => {
     const { result } = renderHook(() => useGraphPersistence());
 
-    await act(async () => {
-      const success = await result.current.load();
-      expect(success).toBe(false);
+    let success = true;
+    act(() => {
+      success = result.current.load();
     });
+
+    expect(success).toBe(false);
   });
 
   it("should export graph as JSON", () => {
@@ -130,25 +126,17 @@ describe("useGraphPersistence", () => {
     expect(parsed.nodes[0].id).toBe("n1");
   });
 
-  it("should clear projects via API", async () => {
-    mockFetch
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ projects: [{ id: "p1" }, { id: "p2" }] }),
-      })
-      .mockResolvedValue({ ok: true });
+  it("should clear localStorage cache", () => {
+    localStorage.setItem("sbc-architecture-graph", "{}");
+    localStorage.setItem("sbc-arch-id", "arch-1");
 
     const { result } = renderHook(() => useGraphPersistence());
 
-    await act(async () => {
-      await result.current.clear();
+    act(() => {
+      result.current.clear();
     });
 
-    expect(mockFetch).toHaveBeenCalledWith("/api/projects/p1", {
-      method: "DELETE",
-    });
-    expect(mockFetch).toHaveBeenCalledWith("/api/projects/p2", {
-      method: "DELETE",
-    });
+    expect(localStorage.getItem("sbc-architecture-graph")).toBeNull();
+    expect(localStorage.getItem("sbc-arch-id")).toBeNull();
   });
 });

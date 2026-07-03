@@ -51,7 +51,7 @@ export default function DashboardPage() {
     const room = params.get("room");
     setRoomId(room ?? `sbc-${Math.random().toString(36).slice(2, 10)}`);
 
-    load().finally(() => setIsLoading(false));
+    Promise.resolve(load()).finally(() => setIsLoading(false));
 
     // Load cloud config from server
     async function loadCloudConfig() {
