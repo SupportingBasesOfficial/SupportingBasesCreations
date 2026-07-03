@@ -11,6 +11,7 @@ export default defineConfig({
       "@sbc/shared": resolve(__dirname, "../../shared/types/src/index.ts"),
       "@sbc/core": resolve(__dirname, "../../packages/core/dist/index.js"),
       "@sbc/cloud": resolve(__dirname, "../../packages/cloud/dist/index.js"),
+      "@sbc/generators": resolve(__dirname, "../../packages/generators/src/index.ts"),
       "y-webrtc": resolve(__dirname, "src/test/mocks/y-webrtc.ts"),
       "y-indexeddb": resolve(__dirname, "src/test/mocks/y-indexeddb.ts"),
     },
@@ -22,7 +23,7 @@ export default defineConfig({
     include: ["src/**/*.test.{ts,tsx}"],
     server: {
       deps: {
-        inline: ["@sbc/core", "@sbc/shared", "@sbc/cloud"],
+        inline: ["@sbc/core", "@sbc/shared", "@sbc/cloud", "@sbc/generators"],
       },
     },
   },
