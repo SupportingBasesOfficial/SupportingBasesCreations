@@ -1,0 +1,6 @@
+vulnerabilities:
+  - id: GHSA-qx2v-qp2m-jg93
+    package:
+      name: postcss
+      version: 8.4.31
+    reason: "postcss 8.4.31 is bundled inside next@15.5.18 and cannot be overridden; no fix available until next bundles a newer version"
