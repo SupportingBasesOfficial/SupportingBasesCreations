@@ -9,7 +9,7 @@ function getSupabaseConfig() {
   return { url, key };
 }
 
-export function createServerSupabaseClient() {
+export async function createServerSupabaseClient() {
   const config = getSupabaseConfig();
   if (!config) {
     return {
@@ -43,7 +43,7 @@ export function createServerSupabaseClient() {
     } as unknown as ReturnType<typeof createServerClient>;
   }
 
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   return createServerClient(config.url, config.key, {
     cookies: {
       getAll() {

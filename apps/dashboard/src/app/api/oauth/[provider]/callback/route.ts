@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { provider: string } },
+  { params }: { params: Promise<{ provider: string }> },
 ) {
+  const { provider } = await params;
   const { searchParams, origin } = request.nextUrl;
   const code = searchParams.get("code");
   const state = searchParams.get("state");
@@ -24,7 +25,7 @@ export async function GET(
     return NextResponse.redirect(`${origin}/?oauth_error=state_mismatch`);
   }
 
-  const redirectUri = `${origin}/api/oauth/${params.provider}/callback`;
+  const redirectUri = `${origin}/api/oauth/${provider}/callback`;
 
   const tokenEndpoints: Record<string, string> = {
     github: "https://github.com/login/oauth/access_token",
@@ -44,9 +45,9 @@ export async function GET(
     supabase: process.env.SUPABASE_OAUTH_CLIENT_SECRET ?? "",
   };
 
-  const tokenEndpoint = tokenEndpoints[params.provider];
-  const clientId = clientIds[params.provider];
-  const clientSecret = clientSecrets[params.provider];
+  const tokenEndpoint = tokenEndpoints[provider];
+  const clientId = clientIds[provider];
+  const clientSecret = clientSecrets[provider];
 
   if (!tokenEndpoint || !clientId) {
     return NextResponse.redirect(`${origin}/?oauth_error=unknown_provider`);
@@ -73,7 +74,7 @@ export async function GET(
     if (!res.ok) {
       const errText = await res.text();
       console.error(
-        `OAuth token exchange failed for ${params.provider}:`,
+        `OAuth token exchange failed for ${provider}:`,
         errText,
       );
       return NextResponse.redirect(
@@ -85,9 +86,9 @@ export async function GET(
     const token = (data as { access_token: string }).access_token;
 
     const response = NextResponse.redirect(
-      `${origin}/?oauth_success=${params.provider}&token=${token}`,
+      `${origin}/?oauth_success=${provider}&token=${token}`,
     );
-    response.cookies.set(`sbc-token-${params.provider}`, token, {
+    response.cookies.set(`sbc-token-${provider}`, token, {
       httpOnly: true,
       secure: true,
       sameSite: "lax",
@@ -97,7 +98,7 @@ export async function GET(
 
     return response;
   } catch (err) {
-    console.error(`OAuth callback error for ${params.provider}:`, err);
+    console.error(`OAuth callback error for ${provider}:`, err);
     return NextResponse.redirect(`${origin}/?oauth_error=exception`);
   }
 }
