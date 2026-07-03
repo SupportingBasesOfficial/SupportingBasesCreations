@@ -107,6 +107,7 @@ jobs:
       - name: Deploy to Vercel Preview
         id: deploy
         run: |
+          if [ -z "${{ secrets.VERCEL_TOKEN }}" ]; then echo "VERCEL_TOKEN secret is not set"; exit 1; fi
           url=$(vercel --token ${{ secrets.VERCEL_TOKEN }} --yes 2>&1 | tail -1)
           echo "url=$url" >> $GITHUB_OUTPUT
           echo "Preview URL: $url"
@@ -262,7 +263,9 @@ jobs:
       - name: Install Vercel CLI
         run: npm i -g vercel@latest
       - name: Deploy to Vercel Production
-        run: vercel --prod --token ${{ secrets.VERCEL_TOKEN }} --yes
+        run: |
+          if [ -z "${{ secrets.VERCEL_TOKEN }}" ]; then echo "VERCEL_TOKEN secret is not set"; exit 1; fi
+          vercel --prod --token ${{ secrets.VERCEL_TOKEN }} --yes
       - name: Smoke test production
         run: |
           sleep 10
