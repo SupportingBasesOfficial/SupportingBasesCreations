@@ -108,7 +108,7 @@ jobs:
         id: deploy
         run: |
           if [ -z "${{ secrets.VERCEL_TOKEN }}" ]; then echo "VERCEL_TOKEN secret is not set"; exit 1; fi
-          url=$(vercel --token ${{ secrets.VERCEL_TOKEN }} --yes 2>&1 | tail -1)
+          url=$(vercel apps/dashboard --token ${{ secrets.VERCEL_TOKEN }} --yes 2>&1 | tail -1)
           echo "url=$url" >> $GITHUB_OUTPUT
           echo "Preview URL: $url"
       - name: Set BASE_URL env for E2E
@@ -265,7 +265,7 @@ jobs:
       - name: Deploy to Vercel Production
         run: |
           if [ -z "${{ secrets.VERCEL_TOKEN }}" ]; then echo "VERCEL_TOKEN secret is not set"; exit 1; fi
-          vercel --prod --token ${{ secrets.VERCEL_TOKEN }} --yes
+          vercel apps/dashboard --prod --token ${{ secrets.VERCEL_TOKEN }} --yes
       - name: Smoke test production
         run: |
           sleep 10
