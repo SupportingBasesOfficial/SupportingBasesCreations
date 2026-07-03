@@ -35,6 +35,20 @@ vi.mock("@sbc/core", () => ({
   })),
 }));
 
+// Mock @sbc/generators to avoid loading real generators
+vi.mock("@sbc/generators", () => ({
+  BaseTemplateGenerator: vi.fn(),
+  PrismaGenerator: vi.fn(),
+  TRPCGenerator: vi.fn(),
+  NextJSGenerator: vi.fn(),
+  AuthGenerator: vi.fn(),
+  BillingGenerator: vi.fn(),
+  DockerGenerator: vi.fn(),
+  EnvGenerator: vi.fn(),
+  GitHubActionsGenerator: vi.fn(),
+  DocsGenerator: vi.fn(),
+}));
+
 // Mock next/server
 vi.mock("next/server", () => ({
   NextRequest: class MockNextRequest extends Request {
