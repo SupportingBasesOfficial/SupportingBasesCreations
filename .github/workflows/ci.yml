@@ -170,6 +170,7 @@ jobs:
           output: trivy-results.sarif
           severity: CRITICAL,HIGH
           exit-code: '1'
+          limit-severities-for-sarif: true
           skip-dirs: fullstack-test,generated-test,mega-test,saas-test,saas-test2,packages/core/templates/base-template
           trivyignores: .trivyignore.yaml
       - name: Upload Trivy results
