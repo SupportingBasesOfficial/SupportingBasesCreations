@@ -6,7 +6,7 @@ Enterprise-grade **Mega-Tech** project generation platform. Design your architec
 
 ```
 monorepo/
-├── apps/dashboard       # Next.js visual dashboard (React Flow, Supabase Auth, Sentry)
+├── apps/dashboard       # Next.js visual dashboard (React Flow, Supabase Auth)
 │   ├── src/app/         # App router (pages, API routes)
 │   ├── src/components/  # UI components (canvas, collaboration, settings)
 │   ├── src/hooks/       # React hooks (deploy, persistence, session, OAuth)
@@ -20,7 +20,7 @@ monorepo/
 └── shared/types         # Shared TypeScript types
 ```
 
-## Mega-Tech Stack
+## Tech Stack
 
 | Service | Purpose |
 |---------|---------|
@@ -29,18 +29,19 @@ monorepo/
 | **Upstash Redis** | Cache, rate limiting, KV store, plugin loader |
 | **Upstash QStash** | Serverless event queue (emails, async tasks) |
 | **Vercel Blob** | File storage |
-| **Sentry** | Error tracking & performance monitoring |
 
 ## Quick Start
 
 ```bash
+# Prerequisites: Node.js >=24, pnpm >=9
+
 # Install dependencies
 pnpm install
 
 # Build all packages
 pnpm build
 
-# Start dashboard
+# Start dashboard (http://localhost:3002)
 pnpm --filter @sbc/dashboard dev
 
 # Generate a project via CLI
@@ -64,7 +65,6 @@ node packages/cli/dist/index.js health
 | `UPSTASH_REDIS_REST_URL/TOKEN` | Upstash Redis for rate limiting & KV |
 | `QSTASH_TOKEN` | Upstash QStash for event queues |
 | `BLOB_READ_WRITE_TOKEN` | Vercel Blob storage token |
-| `SENTRY_DSN` | Sentry error tracking DSN |
 
 ### CLI / Core
 
@@ -86,8 +86,9 @@ node packages/cli/dist/index.js health
 - **Project Persistence** — Save/load projects from Supabase Postgres
 - **Dark Mode** — Full dark/light theme support
 - **Templates** — Pre-built architecture templates gallery
-- **Export** — Download architecture as ZIP
+- **Export** — Download architecture as ZIP or JSON
 - **Auth** — Supabase Auth (email/password + GitHub OAuth)
+- **AI Copilot** — Architecture suggestions and code preview
 
 ### Engine
 - **Resilient Generation** — Timeout, retry, circuit breaker, graceful degradation
@@ -114,7 +115,10 @@ node packages/cli/dist/index.js health
 pnpm -r run test
 
 # Type check all
-pnpm -r run check-types
+pnpm check-types
+
+# Lint all
+pnpm lint
 
 # E2E tests
 pnpm --filter @sbc/dashboard run test:e2e
@@ -126,12 +130,13 @@ pnpm --filter @sbc/dashboard run build-storybook
 ## CI/CD
 
 GitHub Actions workflow at `.github/workflows/ci.yml`:
-1. Lint & Type Check
-2. Unit Tests (all packages)
-3. Build All
-4. Security Scans (Semgrep, Snyk)
-5. Storybook Build
-6. Smoke Test
+
+1. **Lint & Type Check** — ESLint + TypeScript
+2. **Unit Tests** — Core + Dashboard (Vitest)
+3. **Build All** — Turborepo (all packages)
+4. **Security Scans** — Trivy (SARIF), CodeQL, Gitleaks, SBOM
+5. **Preview Deploy** — Vercel (on pull requests)
+6. **Production Deploy** — Vercel (on push to main)
 
 ## License
 

@@ -7,6 +7,18 @@ import {
   Entity,
   Field,
   UpstashRedisKV,
+  FieldType,
+  FeatureFlag,
+  ArchitectureType,
+  FrontendFramework,
+  StylingSystem,
+  ComponentSystem,
+  CloudProvider,
+  Containerization,
+  Orchestration,
+  DatabaseType,
+  CacheType,
+  QueueType,
 } from "@sbc/core";
 import {
   BaseTemplateGenerator,
@@ -97,18 +109,33 @@ export async function POST(request: NextRequest) {
             ?.filter((n) => n.type === "entity" || n.type === "database")
             .map((e) => {
               const fields = (e.fields as Array<Record<string, unknown>>)?.map(
-                (f) => new Field(f.name as string, f.type as never, {}),
+                (f) => new Field(f.name as string, f.type as FieldType, {}),
               );
               return new Entity(e.name as string, fields ?? [], {
-                features: (e.features ?? []) as never,
+                features: (e.features ?? []) as FeatureFlag[],
               });
             });
 
           const project = new Project(projectName, {
             entities: entities ?? [],
-            architecture: {} as never,
-            frontend: {} as never,
-            infrastructure: {} as never,
+            architecture: ArchitectureType.MODULAR_MONOLITH,
+            frontend: {
+              framework: FrontendFramework.NEXTJS,
+              styling: StylingSystem.TAILWIND,
+              components: ComponentSystem.SHADCN,
+              features: [],
+              pages: [],
+            },
+            infrastructure: {
+              cloud: CloudProvider.VERCEL,
+              containerization: Containerization.NONE,
+              orchestration: Orchestration.NONE,
+              database: DatabaseType.POSTGRESQL,
+              cache: CacheType.REDIS,
+              queue: QueueType.NONE,
+              cdn: true,
+              regions: ["us-east-1"],
+            },
           });
 
           const registry = new GeneratorRegistry();

@@ -10,6 +10,7 @@ coverage/
 .turbo/
 .vercel
 .env*
+!.env.example
 
 # Generated test output
 fullstack-test/
