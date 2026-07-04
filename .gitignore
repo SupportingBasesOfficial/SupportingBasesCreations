@@ -10,3 +10,10 @@ coverage/
 .turbo/
 .vercel
 .env*
+
+# Generated test output
+fullstack-test/
+generated-test/
+mega-test/
+saas-test/
+saas-test2/
