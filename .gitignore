@@ -17,3 +17,6 @@ generated-test/
 mega-test/
 saas-test/
 saas-test2/
+
+# Storybook build output
+storybook-static/
