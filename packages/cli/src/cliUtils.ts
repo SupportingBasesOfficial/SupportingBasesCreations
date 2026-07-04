@@ -1,6 +1,24 @@
 import https from "https";
 import { projectOptionsSchema } from "@sbc/core";
-import { Project, Entity, Field } from "@sbc/core";
+import { Project, Entity, Field, Service, ProviderConfig } from "@sbc/core";
+import {
+  FieldType,
+  ArchitectureType,
+  FeatureFlag,
+  FrontendFramework,
+  StylingSystem,
+  ComponentSystem,
+  CloudProvider,
+  Containerization,
+  Orchestration,
+  DatabaseType,
+  CacheType,
+  QueueType,
+  TestType,
+  LinterType,
+  SecurityTool,
+  DocType,
+} from "@sbc/core";
 
 export const CURRENT_SCHEMA_VERSION = "1.0";
 
@@ -95,8 +113,8 @@ export async function validateGeneratedTypeScript(
 
     const diagnostics = ts.getPreEmitDiagnostics(program);
     const errors = diagnostics
-      .filter((d: any) => d.category === ts.DiagnosticCategory.Error)
-      .map((d: any) => {
+      .filter((d) => d.category === ts.DiagnosticCategory.Error)
+      .map((d) => {
         const msg = ts.flattenDiagnosticMessageText(d.messageText, "\n");
         if (d.file && d.start !== undefined) {
           const { line, character } = d.file.getLineAndCharacterOfPosition(d.start);
@@ -116,27 +134,47 @@ export function buildProjectFromConfig(raw: unknown): Project {
   const parsed = projectOptionsSchema.parse(raw);
   const entities = parsed.entities.map((e) => {
     const fields = e.fields.map(
-      (f) => new Field(f.name, f.type as any, f.options as any),
+      (f) => new Field(f.name, f.type as FieldType, f.options as Field["options"]),
     );
     return new Entity(e.name, fields, {
       description: e.options.description,
       tableName: e.options.tableName,
-      features: e.options.features as any,
+      features: e.options.features as FeatureFlag[],
       audited: e.options.audited,
       softDelete: e.options.softDelete,
     });
   });
 
-  return new Project((raw as any).name ?? "my-project", {
+  return new Project((raw as Record<string, unknown>).name as string ?? "my-project", {
     description: parsed.description,
-    architecture: parsed.architecture as any,
+    architecture: parsed.architecture as ArchitectureType,
     regions: parsed.regions,
     entities,
-    services: parsed.services as any,
-    providers: parsed.providers as any,
-    frontend: parsed.frontend as any,
-    infrastructure: parsed.infrastructure as any,
-    quality: parsed.quality as any,
+    services: parsed.services as unknown as Service[],
+    providers: parsed.providers as unknown as ProviderConfig[],
+    frontend: {
+      framework: parsed.frontend.framework as FrontendFramework,
+      styling: parsed.frontend.styling as StylingSystem,
+      components: parsed.frontend.components as ComponentSystem,
+      features: parsed.frontend.features,
+      pages: parsed.frontend.pages,
+    },
+    infrastructure: {
+      cloud: parsed.infrastructure.cloud as CloudProvider,
+      containerization: parsed.infrastructure.containerization as Containerization,
+      orchestration: parsed.infrastructure.orchestration as Orchestration,
+      database: parsed.infrastructure.database as DatabaseType,
+      cache: parsed.infrastructure.cache as CacheType,
+      queue: parsed.infrastructure.queue as QueueType,
+      cdn: parsed.infrastructure.cdn,
+      regions: parsed.infrastructure.regions,
+    },
+    quality: {
+      testing: parsed.quality.testing as TestType[],
+      linting: parsed.quality.linting as LinterType[],
+      security: parsed.quality.security as SecurityTool[],
+      documentation: parsed.quality.documentation as DocType[],
+    },
     version: parsed.version,
     author: parsed.author,
     license: parsed.license,

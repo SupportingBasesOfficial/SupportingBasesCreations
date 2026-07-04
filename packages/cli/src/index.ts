@@ -162,8 +162,8 @@ program
         try {
           const rawConfig = JSON.parse(options.config) as Record<string, unknown>;
           const configVersion =
-            (rawConfig as any).schemaVersion ??
-            (rawConfig as any).version ??
+            (rawConfig as Record<string, unknown>).schemaVersion as string ??
+            (rawConfig as Record<string, unknown>).version as string ??
             "1.0";
           if (configVersion !== CURRENT_SCHEMA_VERSION) {
             logger.warn(
@@ -533,7 +533,7 @@ program
     try {
       const rawConfig = JSON.parse(options.config) as Record<string, unknown>;
       const nameValidation = projectNameSchema.safeParse(
-        (rawConfig as any).name ?? "",
+        (rawConfig as Record<string, unknown>).name as string ?? "",
       );
       if (!nameValidation.success) {
         logger.error(`Invalid name: ${nameValidation.error.errors[0].message}`);
@@ -542,7 +542,7 @@ program
 
       const parsed = projectOptionsSchema.parse(rawConfig);
       logger.info("Configuration is valid");
-      logger.info(`  Name: ${(rawConfig as any).name}`);
+      logger.info(`  Name: ${(rawConfig as Record<string, unknown>).name as string}`);
       logger.info(`  Architecture: ${parsed.architecture}`);
       logger.info(`  Entities: ${parsed.entities.length}`);
       logger.info(`  Providers: ${parsed.providers.length}`);
