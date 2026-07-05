@@ -6,9 +6,9 @@ import {
   Project,
   Entity,
   Field,
+  Service,
   UpstashRedisKV,
-  FieldType,
-  FeatureFlag,
+  GraphToConfigMapper,
   ArchitectureType,
   FrontendFramework,
   StylingSystem,
@@ -19,6 +19,7 @@ import {
   DatabaseType,
   CacheType,
   QueueType,
+  ServiceType,
 } from "@sbc/core";
 import {
   BaseTemplateGenerator,
@@ -32,7 +33,7 @@ import {
   GitHubActionsGenerator,
   DocsGenerator,
 } from "@sbc/generators";
-import type { CloudConfig, DeployProgress } from "@sbc/shared";
+import type { CloudConfig, DeployProgress, ArchitectureGraph } from "@sbc/shared";
 
 export const maxDuration = 300;
 export const runtime = "nodejs";
@@ -104,37 +105,56 @@ export async function POST(request: NextRequest) {
             percentage: 5,
           });
 
-          const raw = graph as Record<string, unknown>;
-          const entities = (raw.nodes as Array<Record<string, unknown>>)
-            ?.filter((n) => n.type === "entity" || n.type === "database")
-            .map((e) => {
-              const fields = (e.fields as Array<Record<string, unknown>>)?.map(
-                (f) => new Field(f.name as string, f.type as FieldType, {}),
-              );
-              return new Entity(e.name as string, fields ?? [], {
-                features: (e.features ?? []) as FeatureFlag[],
-              });
+          const mapper = new GraphToConfigMapper(
+            graph as ArchitectureGraph,
+            projectName,
+          );
+          const cfg = mapper.map();
+
+          const entities = (cfg.entities ?? []).map((e) => {
+            const fields = e.fields.map(
+              (f) => new Field(f.name, f.type as unknown as Field["type"], {
+                nullable: f.nullable,
+                unique: f.unique,
+              }),
+            );
+            return new Entity(e.name, fields, {
+              tableName: e.tableName,
+              features: (e.features ?? []) as never,
             });
+          });
+
+          const services = (cfg.services ?? []).map(
+            (s) =>
+              new Service(
+                s.name,
+                (s.type === "ASYNC" ? ServiceType.ASYNC : ServiceType.SYNC) as ServiceType,
+                { endpoints: s.entities },
+              ),
+          );
 
           const project = new Project(projectName, {
-            entities: entities ?? [],
-            architecture: ArchitectureType.MODULAR_MONOLITH,
+            description: cfg.description,
+            architecture: cfg.architecture as ArchitectureType,
+            regions: cfg.regions,
+            entities,
+            services,
             frontend: {
-              framework: FrontendFramework.NEXTJS,
-              styling: StylingSystem.TAILWIND,
+              framework: (cfg.frontend?.framework ?? "NEXTJS") as FrontendFramework,
+              styling: (cfg.frontend?.styling ?? "TAILWIND") as StylingSystem,
               components: ComponentSystem.SHADCN,
-              features: [],
-              pages: [],
+              features: cfg.frontend?.features ?? [],
+              pages: cfg.frontend?.pages,
             },
             infrastructure: {
-              cloud: CloudProvider.VERCEL,
+              cloud: (cfg.infrastructure?.cloud ?? "VERCEL") as CloudProvider,
               containerization: Containerization.NONE,
               orchestration: Orchestration.NONE,
-              database: DatabaseType.POSTGRESQL,
-              cache: CacheType.REDIS,
-              queue: QueueType.NONE,
-              cdn: true,
-              regions: ["us-east-1"],
+              database: (cfg.infrastructure?.database ?? "POSTGRESQL") as DatabaseType,
+              cache: (cfg.infrastructure?.cache ?? "NONE") as CacheType,
+              queue: (cfg.infrastructure?.queue ?? "NONE") as QueueType,
+              cdn: cfg.infrastructure?.cdn,
+              regions: cfg.infrastructure?.regions,
             },
           });
 
