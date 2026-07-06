@@ -17,7 +17,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      router.replace("/");
+      router.replace("/dashboard");
     }
   }, [user, loading, router]);
 
@@ -33,7 +33,7 @@ export default function LoginPage() {
       if (error) {
         setError(error.message);
       } else {
-        router.replace("/");
+        router.replace("/dashboard");
       }
     } else {
       const { error, needsEmailConfirmation } = await signUp(email, password);
@@ -44,7 +44,7 @@ export default function LoginPage() {
         setInfo("Account created! Check your email for a verification link to complete sign up.");
         setMode("signin");
       } else {
-        router.replace("/");
+        router.replace("/dashboard");
       }
     }
   };
