@@ -18,6 +18,17 @@ vi.mock("@upstash/redis", () => ({
   Redis: vi.fn(() => mockRedis),
 }));
 
+// Mock supabase-server to bypass auth
+vi.mock("../../../lib/supabase-server", () => ({
+  createServerSupabaseClient: vi.fn().mockResolvedValue({
+    auth: {
+      getUser: vi.fn().mockResolvedValue({
+        data: { user: { id: "test-user-id", email: "test@test.com" } },
+      }),
+    },
+  }),
+}));
+
 // Mock NextRequest/NextResponse
 vi.mock("next/server", () => ({
   NextRequest: class MockNextRequest extends Request {
@@ -118,14 +129,18 @@ describe("GET /api/plugins", () => {
     mockRedis.scan.mockResolvedValue([0, ["plugin:foo", "plugin:bar"]]);
     mockRedis.get
       .mockResolvedValueOnce(JSON.stringify({ name: "foo", entry: "@sbc/foo" }))
-      .mockResolvedValueOnce(JSON.stringify({ name: "bar", entry: "@sbc/bar" }));
+      .mockResolvedValueOnce(
+        JSON.stringify({ name: "bar", entry: "@sbc/bar" }),
+      );
 
     const res = (await GET()) as MockResponse;
     const data = await res.json();
 
     expect(res.status).toBe(200);
     expect(data.plugins).toHaveLength(2);
-    expect((data.plugins as Array<Record<string, unknown>>)[0].name).toBe("foo");
+    expect((data.plugins as Array<Record<string, unknown>>)[0].name).toBe(
+      "foo",
+    );
   });
 
   it("returns empty list when no plugins", async () => {

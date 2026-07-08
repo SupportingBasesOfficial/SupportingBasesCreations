@@ -1,0 +1,3 @@
+# Gitleaks ignore — old .env.local.example with Supabase public keys (non-sensitive, already rotated)
+5b325b164c4c2eebf34acc92beff1619e9bc19cb:apps/dashboard/.env.local.example:jwt:11
+5b325b164c4c2eebf34acc92beff1619e9bc19cb:apps/dashboard/.env.local.example:jwt:12

@@ -13,7 +13,12 @@ const mockGet = vi.fn();
 
 vi.mock("@sbc/core", () => ({
   CloudDeployPipeline: vi.fn().mockImplementation(() => ({
-    execute: vi.fn().mockResolvedValue({ success: true, vercelUrl: "https://test.vercel.app" }),
+    execute: vi
+      .fn()
+      .mockResolvedValue({
+        success: true,
+        vercelUrl: "https://test.vercel.app",
+      }),
   })),
   GenerationEngine: vi.fn().mockImplementation(() => ({
     generate: vi.fn().mockResolvedValue({
@@ -33,6 +38,17 @@ vi.mock("@sbc/core", () => ({
     set: mockSet,
     get: mockGet,
   })),
+}));
+
+// Mock supabase-server to bypass auth
+vi.mock("../../../lib/supabase-server", () => ({
+  createServerSupabaseClient: vi.fn().mockResolvedValue({
+    auth: {
+      getUser: vi.fn().mockResolvedValue({
+        data: { user: { id: "test-user-id", email: "test@test.com" } },
+      }),
+    },
+  }),
 }));
 
 // Mock @sbc/generators to avoid loading real generators
