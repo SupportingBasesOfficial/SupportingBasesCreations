@@ -92,7 +92,7 @@ export function AICopilot() {
       <button
         onClick={() => setOpen(true)}
         className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 px-3 py-2 text-sm font-medium text-white shadow-md transition-all hover:from-purple-700 hover:to-pink-700"
-        title="AI Architecture Copilot"
+        title="Copiloto de IA para Arquitetura"
       >
         <Wand2 size={16} />
         <span className="hidden sm:inline">IA Copiloto</span>

@@ -42,8 +42,11 @@ export function DeployButton({
   const cloudConfig = useDeployStore((s) => s.cloudConfig);
   const { deploy, isDeploying, progress, result, deployId } = useCloudDeploy();
 
-  const handleDeploy = async () => {
+  const openModal = () => {
     setShowModal(true);
+  };
+
+  const handleDeploy = async () => {
     const res = await deploy(projectName);
     if (res.success && deployId) {
       onDeployStart?.(deployId);
@@ -62,7 +65,7 @@ export function DeployButton({
   return (
     <>
       <button
-        onClick={handleDeploy}
+        onClick={openModal}
         disabled={!isValid || nodeCount === 0 || isDeploying}
         className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-md transition-all hover:from-blue-700 hover:to-indigo-700 disabled:cursor-not-allowed disabled:from-gray-300 disabled:to-gray-300"
       >
@@ -78,7 +81,7 @@ export function DeployButton({
           onClick={() => onViewLogs?.(deployId)}
           disabled={!isValid || nodeCount === 0}
           className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-2.5 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-          title="View deploy logs"
+          title="Ver logs do deploy"
         >
           <Terminal size={16} />
         </button>

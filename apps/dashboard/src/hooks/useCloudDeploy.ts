@@ -23,7 +23,7 @@ export function useCloudDeploy() {
         const err: DeployResult = {
           success: false,
           error:
-            "Cloud config not set. Configure GitHub, Vercel, and Supabase tokens first.",
+            "Configuração de nuvem não definida. Configure os tokens do GitHub, Vercel e Supabase primeiro.",
         };
         return err;
       }

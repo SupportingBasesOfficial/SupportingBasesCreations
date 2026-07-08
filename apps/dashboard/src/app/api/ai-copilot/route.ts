@@ -11,9 +11,14 @@ interface AIResponse {
   explanation: string;
 }
 
-const SYSTEM_PROMPT = `You are an expert software architect AI for SBC ASP, a visual architecture platform where non-technical users describe their app idea and get a full-stack architecture generated.
+const SYSTEM_PROMPT = `You are an expert software architect AI for SBC ASP, a visual architecture platform where non-technical Brazilian users describe their app idea and get a full-stack architecture generated.
 
-Your job: Take a natural language description and design a COMPLETE, PRODUCTION-READY architecture with real domain modeling.
+Your job: Take a natural language description (in Portuguese) and design a COMPLETE, PRODUCTION-READY architecture with real domain modeling.
+
+## Language Rules:
+- ALL node labels, descriptions, and the explanation MUST be in Portuguese (Brazilian Portuguese).
+- Table names and field names should use English/snake_case (e.g., "users", "orders", "created_at") as is standard in database design.
+- The explanation should be written for a non-technical Brazilian person.
 
 ## Available Node Types:
 - FrontendComponent: UI/frontend (always include one, usually Next.js + Tailwind)
@@ -67,8 +72,8 @@ Your job: Take a natural language description and design a COMPLETE, PRODUCTION-
       "type": "CloudDatabase",
       "position": { "x": 50, "y": 50 },
       "data": {
-        "label": "Users",
-        "description": "User accounts and profiles",
+        "label": "Usuários",
+        "description": "Contas e perfis de usuários",
         "tableName": "users",
         "fields": [
           { "name": "id", "type": "uuid", "required": true, "unique": true, "nullable": false },
@@ -86,8 +91,8 @@ Your job: Take a natural language description and design a COMPLETE, PRODUCTION-
       "type": "ApiRoute",
       "position": { "x": 400, "y": 50 },
       "data": {
-        "label": "Users API",
-        "description": "CRUD for user management",
+        "label": "API de Usuários",
+        "description": "CRUD para gerenciamento de usuários",
         "method": "GET",
         "route": "/api/users"
       }
@@ -97,8 +102,8 @@ Your job: Take a natural language description and design a COMPLETE, PRODUCTION-
       "type": "FrontendComponent",
       "position": { "x": 750, "y": 300 },
       "data": {
-        "label": "Web App",
-        "description": "Main application UI",
+        "label": "Aplicação Web",
+        "description": "Interface principal do aplicativo",
         "framework": "NEXTJS",
         "styling": "TAILWIND",
         "features": []
@@ -109,7 +114,7 @@ Your job: Take a natural language description and design a COMPLETE, PRODUCTION-
     { "id": "e1", "source": "db-users", "target": "api-users", "label": "stores", "animated": true },
     { "id": "e2", "source": "api-users", "target": "frontend", "label": "serves", "animated": true }
   ],
-  "explanation": "User-friendly explanation of what was built and why"
+  "explanation": "Explicação amigável do que o app faz, quais dados armazena e como as peças funcionam juntas"
 }
 
 ### Node ID Convention:
@@ -123,7 +128,7 @@ Your job: Take a natural language description and design a COMPLETE, PRODUCTION-
 - Webhook: "webhook"
 
 ### Explanation:
-Write a clear, non-technical explanation of what the app does, what data it stores, and how the pieces work together. Speak to a non-technical person.
+Write a clear, non-technical explanation IN PORTUGUESE of what the app does, what data it stores, and how the pieces work together. Speak to a non-technical Brazilian person.
 
 Generate between 5 and 20 nodes depending on app complexity. Real apps have multiple entities.`;
 
@@ -135,14 +140,14 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
     const { prompt } = (await request.json()) as { prompt: string };
 
     if (!prompt || prompt.trim().length < 3) {
       return NextResponse.json(
-        { error: "Please provide a description of at least 3 characters" },
+        { error: "Descreva seu projeto com pelo menos 3 caracteres" },
         { status: 400 },
       );
     }
@@ -152,7 +157,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "Groq API key not configured. Set GROQ_API_KEY environment variable. Get one free at console.groq.com",
+            "Chave da API Groq não configurada. Defina a variável de ambiente GROQ_API_KEY. Obtenha uma gratuitamente em console.groq.com",
         },
         { status: 500 },
       );
@@ -182,7 +187,7 @@ export async function POST(request: NextRequest) {
     if (!response.ok) {
       const errText = await response.text();
       return NextResponse.json(
-        { error: `AI service error: ${response.status} ${errText}` },
+        { error: `Erro do serviço de IA: ${response.status} ${errText}` },
         { status: 502 },
       );
     }
@@ -192,7 +197,7 @@ export async function POST(request: NextRequest) {
 
     if (!content) {
       return NextResponse.json(
-        { error: "AI returned empty response" },
+        { error: "A IA retornou uma resposta vazia" },
         { status: 500 },
       );
     }
@@ -205,7 +210,7 @@ export async function POST(request: NextRequest) {
       parsed.nodes.length === 0
     ) {
       return NextResponse.json(
-        { error: "AI did not generate valid architecture nodes" },
+        { error: "A IA não gerou blocos de arquitetura válidos" },
         { status: 500 },
       );
     }
@@ -215,9 +220,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "Failed to generate architecture",
+          error instanceof Error ? error.message : "Falha ao gerar arquitetura",
       },
       { status: 500 },
     );

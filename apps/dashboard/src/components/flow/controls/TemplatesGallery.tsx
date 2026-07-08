@@ -30,7 +30,7 @@ const TEMPLATES: Template[] = [
   {
     id: "saas-starter",
     name: "SaaS Starter",
-    description: "Postgres + Auth API + Next.js frontend",
+    description: "Postgres + API de Auth + frontend Next.js",
     icon: "🚀",
     nodes: [
       {
@@ -106,7 +106,7 @@ const TEMPLATES: Template[] = [
   {
     id: "blog-cms",
     name: "Blog / CMS",
-    description: "Supabase + Content API + Static frontend",
+    description: "Supabase + API de Conteúdo + frontend estático",
     icon: "📝",
     nodes: [
       {
@@ -182,7 +182,7 @@ const TEMPLATES: Template[] = [
   {
     id: "ecommerce",
     name: "E-Commerce",
-    description: "DB + Products API + Orders API + Storefront",
+    description: "Banco + API de Produtos + API de Pedidos + Loja",
     icon: "🛒",
     nodes: [
       {
@@ -271,7 +271,7 @@ const TEMPLATES: Template[] = [
   {
     id: "realtime-chat",
     name: "Realtime Chat",
-    description: "Supabase Realtime + Auth + Chat UI",
+    description: "Supabase Realtime + Auth + Interface de Chat",
     icon: "💬",
     nodes: [
       {
@@ -1442,7 +1442,7 @@ export function TemplatesGallery() {
     });
 
     loadGraph({ nodes, edges });
-    toast.success(`Template "${tpl.name}" loaded`);
+    toast.success(`Modelo "${tpl.name}" carregado`);
     setOpen(false);
   };
 
@@ -1467,7 +1467,7 @@ export function TemplatesGallery() {
           >
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100">
-                Architecture Templates
+                Modelos de Arquitetura
               </h2>
               <button
                 onClick={() => setOpen(false)}

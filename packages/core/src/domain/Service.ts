@@ -1,5 +1,10 @@
-import { ServiceType } from './enums.js';
-import type { Named, Validatable, Configurable, ValidationResult } from '@sbc/shared';
+import { ServiceType } from "./enums.js";
+import type {
+  Named,
+  Validatable,
+  Configurable,
+  ValidationResult,
+} from "@sbc/shared";
 
 export interface ServiceOptions {
   description?: string;
@@ -14,7 +19,8 @@ export interface ServiceOptions {
 export class Service implements Named, Validatable<Service>, Configurable {
   readonly name: string;
   readonly type: ServiceType;
-  readonly options: Required<Omit<ServiceOptions, 'description'>> & Pick<ServiceOptions, 'description'>;
+  readonly options: Required<Omit<ServiceOptions, "description">> &
+    Pick<ServiceOptions, "description">;
 
   constructor(name: string, type: ServiceType, options: ServiceOptions = {}) {
     this.name = name;
@@ -56,26 +62,51 @@ export class Service implements Named, Validatable<Service>, Configurable {
   }
 
   isAsync(): boolean {
-    return this.options.async || [ServiceType.ASYNC, ServiceType.EVENT_DRIVEN, ServiceType.BATCH].includes(this.type);
+    return (
+      this.options.async ||
+      [ServiceType.ASYNC, ServiceType.EVENT_DRIVEN, ServiceType.BATCH].includes(
+        this.type,
+      )
+    );
   }
 
   validate(): ValidationResult<Service> {
     const errors: Array<{ path: string; message: string; code: string }> = [];
 
     if (!this.name || this.name.trim().length === 0) {
-      errors.push({ path: 'name', message: 'Service name is required', code: 'SERVICE_NAME_REQUIRED' });
+      errors.push({
+        path: "name",
+        message: "Nome do serviço é obrigatório",
+        code: "SERVICE_NAME_REQUIRED",
+      });
     }
 
     if (!/^[a-z][a-zA-Z0-9]*$/.test(this.name)) {
-      errors.push({ path: 'name', message: 'Service name must be camelCase', code: 'SERVICE_NAME_INVALID' });
+      errors.push({
+        path: "name",
+        message: "O nome do serviço deve estar em camelCase",
+        code: "SERVICE_NAME_INVALID",
+      });
     }
 
-    if (this.type === ServiceType.EVENT_DRIVEN && this.options.events.length === 0) {
-      errors.push({ path: 'events', message: 'Event-driven service must define at least one event', code: 'SERVICE_EVENTS_REQUIRED' });
+    if (
+      this.type === ServiceType.EVENT_DRIVEN &&
+      this.options.events.length === 0
+    ) {
+      errors.push({
+        path: "events",
+        message:
+          "Serviço orientado a eventos deve definir pelo menos um evento",
+        code: "SERVICE_EVENTS_REQUIRED",
+      });
     }
 
     if (this.type === ServiceType.SYNC && this.options.async) {
-      errors.push({ path: 'type', message: 'Sync service cannot be marked as async', code: 'SERVICE_TYPE_CONFLICT' });
+      errors.push({
+        path: "type",
+        message: "Serviço síncrono não pode ser marcado como assíncrono",
+        code: "SERVICE_TYPE_CONFLICT",
+      });
     }
 
     return {

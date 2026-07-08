@@ -221,7 +221,7 @@ export function NodeInspector() {
                               }}
                               className="h-3 w-3"
                             />
-                            Required
+                            Obrigatório
                           </label>
                           <label className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
                             <input
@@ -239,7 +239,7 @@ export function NodeInspector() {
                               }}
                               className="h-3 w-3"
                             />
-                            Unique
+                            Único
                           </label>
                           <label className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
                             <input
@@ -257,7 +257,7 @@ export function NodeInspector() {
                               }}
                               className="h-3 w-3"
                             />
-                            Nullable
+                            Opcional
                           </label>
                         </div>
                       </div>

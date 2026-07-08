@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
     const { config, projectName } = (await request.json()) as {
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
 
     if (!config || !projectName) {
       return NextResponse.json(
-        { error: "Missing required fields: config, projectName" },
+        { error: "Campos obrigatórios ausentes: config, projectName" },
         { status: 400 },
       );
     }
@@ -159,7 +159,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error ? error.message : "Preview generation failed",
+          error instanceof Error
+            ? error.message
+            : "Falha ao gerar pré-visualização",
       },
       { status: 500 },
     );

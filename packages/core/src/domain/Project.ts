@@ -1,8 +1,30 @@
-import { Entity } from './Entity.js';
-import { Service } from './Service.js';
-import { ProviderConfig } from './ProviderConfig.js';
-import { FeatureFlag, ArchitectureType, FrontendFramework, DatabaseType, CacheType, QueueType, CloudProvider, Containerization, Orchestration, StylingSystem, ComponentSystem, TestType, LinterType, SecurityTool, DocType } from './enums.js';
-import type { Named, Validatable, Configurable, ValidationResult, DependencyAware } from '@sbc/shared';
+import { Entity } from "./Entity.js";
+import { Service } from "./Service.js";
+import { ProviderConfig } from "./ProviderConfig.js";
+import {
+  FeatureFlag,
+  ArchitectureType,
+  FrontendFramework,
+  DatabaseType,
+  CacheType,
+  QueueType,
+  CloudProvider,
+  Containerization,
+  Orchestration,
+  StylingSystem,
+  ComponentSystem,
+  TestType,
+  LinterType,
+  SecurityTool,
+  DocType,
+} from "./enums.js";
+import type {
+  Named,
+  Validatable,
+  Configurable,
+  ValidationResult,
+  DependencyAware,
+} from "@sbc/shared";
 
 export interface FrontendConfig {
   framework: FrontendFramework;
@@ -45,16 +67,18 @@ export interface ProjectOptions {
   license?: string;
 }
 
-export class Project implements Named, Validatable<Project>, Configurable, DependencyAware {
+export class Project
+  implements Named, Validatable<Project>, Configurable, DependencyAware
+{
   readonly name: string;
   readonly options: Required<ProjectOptions>;
 
   constructor(name: string, options: ProjectOptions = {}) {
     this.name = name;
     this.options = {
-      description: options.description ?? '',
+      description: options.description ?? "",
       architecture: options.architecture ?? ArchitectureType.MODULAR_MONOLITH,
-      regions: options.regions ?? ['us-east-1'],
+      regions: options.regions ?? ["us-east-1"],
       entities: options.entities ?? [],
       services: options.services ?? [],
       providers: options.providers ?? [],
@@ -73,7 +97,7 @@ export class Project implements Named, Validatable<Project>, Configurable, Depen
         cache: CacheType.REDIS,
         queue: QueueType.NONE,
         cdn: true,
-        regions: ['us-east-1'],
+        regions: ["us-east-1"],
       },
       quality: options.quality ?? {
         testing: [TestType.UNIT, TestType.INTEGRATION],
@@ -81,9 +105,9 @@ export class Project implements Named, Validatable<Project>, Configurable, Depen
         security: [SecurityTool.DEPENDABOT],
         documentation: [DocType.README, DocType.API],
       },
-      version: options.version ?? '1.0.0',
-      author: options.author ?? '',
-      license: options.license ?? 'MIT',
+      version: options.version ?? "1.0.0",
+      author: options.author ?? "",
+      license: options.license ?? "MIT",
     };
   }
 
@@ -125,7 +149,7 @@ export class Project implements Named, Validatable<Project>, Configurable, Depen
 
   enableFeature(feature: FeatureFlag): Project {
     const updatedEntities = this.options.entities.map((e) =>
-      e.hasFeature(feature) ? e : e.enableFeature(feature)
+      e.hasFeature(feature) ? e : e.enableFeature(feature),
     );
     return new Project(this.name, {
       ...this.options,
@@ -141,24 +165,24 @@ export class Project implements Named, Validatable<Project>, Configurable, Depen
     const deps: string[] = [];
 
     if (this.options.infrastructure.database === DatabaseType.POSTGRESQL) {
-      deps.push('postgresql');
+      deps.push("postgresql");
     }
     if (this.options.infrastructure.cache === CacheType.REDIS) {
-      deps.push('redis');
+      deps.push("redis");
     }
     if (this.options.infrastructure.queue === QueueType.RABBITMQ) {
-      deps.push('rabbitmq');
+      deps.push("rabbitmq");
     }
 
     for (const entity of this.options.entities) {
       if (entity.hasFeature(FeatureFlag.AUTH)) {
-        deps.push('auth-provider');
+        deps.push("auth-provider");
       }
       if (entity.hasFeature(FeatureFlag.BILLING)) {
-        deps.push('payment-provider');
+        deps.push("payment-provider");
       }
       if (entity.hasFeature(FeatureFlag.ANALYTICS)) {
-        deps.push('analytics-provider');
+        deps.push("analytics-provider");
       }
     }
 
@@ -169,45 +193,76 @@ export class Project implements Named, Validatable<Project>, Configurable, Depen
     const errors: Array<{ path: string; message: string; code: string }> = [];
 
     if (!this.name || this.name.trim().length === 0) {
-      errors.push({ path: 'name', message: 'Project name is required', code: 'PROJECT_NAME_REQUIRED' });
+      errors.push({
+        path: "name",
+        message: "Nome do projeto é obrigatório",
+        code: "PROJECT_NAME_REQUIRED",
+      });
     }
 
     if (!/^[a-z][a-zA-Z0-9_-]*$/.test(this.name)) {
-      errors.push({ path: 'name', message: 'Project name must be kebab-case or camelCase', code: 'PROJECT_NAME_INVALID' });
+      errors.push({
+        path: "name",
+        message: "Nome do projeto deve estar em kebab-case ou camelCase",
+        code: "PROJECT_NAME_INVALID",
+      });
     }
 
     if (this.options.entities.length === 0) {
-      errors.push({ path: 'entities', message: 'Project must have at least one entity', code: 'PROJECT_NO_ENTITIES' });
+      errors.push({
+        path: "entities",
+        message: "O projeto deve ter pelo menos uma entidade",
+        code: "PROJECT_NO_ENTITIES",
+      });
     }
 
     for (const entity of this.options.entities) {
       const entityValidation = entity.validate();
       if (!entityValidation.valid) {
-        errors.push(...entityValidation.errors.map((e: { path: string; message: string; code: string }) => ({
-          path: `entities.${entity.name}.${e.path}`,
-          message: e.message,
-          code: e.code,
-        })));
+        errors.push(
+          ...entityValidation.errors.map(
+            (e: { path: string; message: string; code: string }) => ({
+              path: `entities.${entity.name}.${e.path}`,
+              message: e.message,
+              code: e.code,
+            }),
+          ),
+        );
       }
     }
 
     for (const service of this.options.services) {
       const serviceValidation = service.validate();
       if (!serviceValidation.valid) {
-        errors.push(...serviceValidation.errors.map((e: { path: string; message: string; code: string }) => ({
-          path: `services.${service.name}.${e.path}`,
-          message: e.message,
-          code: e.code,
-        })));
+        errors.push(
+          ...serviceValidation.errors.map(
+            (e: { path: string; message: string; code: string }) => ({
+              path: `services.${service.name}.${e.path}`,
+              message: e.message,
+              code: e.code,
+            }),
+          ),
+        );
       }
     }
 
-    if (this.options.architecture === ArchitectureType.MICROSERVICES && this.options.services.length === 0) {
-      errors.push({ path: 'services', message: 'Microservices architecture requires at least one service', code: 'PROJECT_MICROSERVICES_NO_SERVICES' });
+    if (
+      this.options.architecture === ArchitectureType.MICROSERVICES &&
+      this.options.services.length === 0
+    ) {
+      errors.push({
+        path: "services",
+        message: "Microservices architecture requires at least one service",
+        code: "PROJECT_MICROSERVICES_NO_SERVICES",
+      });
     }
 
     if (!this.options.infrastructure?.regions?.length) {
-      errors.push({ path: 'infrastructure.regions', message: 'At least one region must be specified', code: 'PROJECT_NO_REGIONS' });
+      errors.push({
+        path: "infrastructure.regions",
+        message: "At least one region must be specified",
+        code: "PROJECT_NO_REGIONS",
+      });
     }
 
     return {

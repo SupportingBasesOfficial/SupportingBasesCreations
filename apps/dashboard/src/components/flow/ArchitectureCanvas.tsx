@@ -142,7 +142,7 @@ function ArchitectureCanvasInner() {
                 nullable: false,
               },
             ],
-            tableName: `${config.label.toLowerCase()}_${nodes.length + 1}`,
+            tableName: `${config.label.toLowerCase().replace(/\s+/g, "_")}_${nodes.length + 1}`,
             features: [],
           }),
           ...(nodeType === NodeType.FRONTEND_COMPONENT && {

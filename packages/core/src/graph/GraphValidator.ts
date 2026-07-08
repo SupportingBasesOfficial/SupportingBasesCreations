@@ -48,19 +48,19 @@ const BLOCKED_CONNECTIONS: Array<{
     from: NodeType.FRONTEND_COMPONENT,
     to: NodeType.CLOUD_DATABASE,
     reason:
-      "Security breach: Frontend cannot connect directly to Database without an API layer.",
+      "Violação de segurança: O frontend não pode conectar diretamente ao banco de dados sem uma camada de API.",
   },
   {
     from: NodeType.FRONTEND_COMPONENT,
     to: NodeType.CACHE_LAYER,
     reason:
-      "Security breach: Frontend cannot connect directly to Cache without an API layer.",
+      "Violação de segurança: O frontend não pode conectar diretamente ao cache sem uma camada de API.",
   },
   {
     from: NodeType.FRONTEND_COMPONENT,
     to: NodeType.QUEUE_SERVICE,
     reason:
-      "Security breach: Frontend cannot connect directly to Queue without an API layer.",
+      "Violação de segurança: O frontend não pode conectar diretamente à fila sem uma camada de API.",
   },
 ];
 
@@ -110,7 +110,7 @@ export class GraphValidator {
     if (!allowed.includes(target)) {
       return {
         code: "INVALID_CONNECTION",
-        message: `Invalid connection: ${source} cannot connect to ${target}.`,
+        message: `Conexão inválida: ${source} não pode conectar com ${target}.`,
       };
     }
 
@@ -143,7 +143,7 @@ export class GraphValidator {
         if (state === 1) {
           errors.push({
             code: "CYCLE_DETECTED",
-            message: `Critical architecture failure: Infinite cycle detected from node ${nodeId} to ${neighbor}.`,
+            message: `Falha crítica na arquitetura: Ciclo infinito detectado do nó ${nodeId} para ${neighbor}.`,
             nodeId: neighbor,
           });
           return true;
@@ -183,7 +183,7 @@ export class GraphValidator {
       if (!sourceNode) {
         errors.push({
           code: "MISSING_SOURCE_NODE",
-          message: `Edge ${edge.id} references non-existent source node ${edge.source}.`,
+          message: `A conexão ${edge.id} referencia um nó de origem inexistente ${edge.source}.`,
           edgeId: edge.id,
         });
         continue;
@@ -192,7 +192,7 @@ export class GraphValidator {
       if (!targetNode) {
         errors.push({
           code: "MISSING_TARGET_NODE",
-          message: `Edge ${edge.id} references non-existent target node ${edge.target}.`,
+          message: `A conexão ${edge.id} referencia um nó de destino inexistente ${edge.target}.`,
           edgeId: edge.id,
         });
         continue;
@@ -223,7 +223,7 @@ export class GraphValidator {
       if (!connectedNodes.has(node.id) && this.graph.nodes.length > 1) {
         errors.push({
           code: "ORPHAN_NODE",
-          message: `Node "${node.data.label}" (${node.id}) is not connected to any other node.`,
+          message: `O bloco "${node.data.label}" (${node.id}) não está conectado a nenhum outro bloco.`,
           nodeId: node.id,
         });
       }
@@ -240,7 +240,7 @@ export class GraphValidator {
       if (seen.has(node.id)) {
         errors.push({
           code: "DUPLICATE_NODE_ID",
-          message: `Duplicate node ID: ${node.id}.`,
+          message: `ID de nó duplicado: ${node.id}.`,
           nodeId: node.id,
         });
       }
