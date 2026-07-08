@@ -1,70 +1,76 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import { FeatureFlag, ArchitectureType } from '@sbc/core';
-import type { Generator, GenerationContext } from '@sbc/core';
-import type { GeneratedArtifact } from '@sbc/shared';
+import * as fs from "fs";
+import * as path from "path";
+import { fileURLToPath } from "url";
+import { FeatureFlag, ArchitectureType } from "@sbc/core";
+import type { Generator, GenerationContext } from "@sbc/core";
+import type { GeneratedArtifact } from "@sbc/shared";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const TEMPLATE_DIR = path.resolve(
   __dirname,
-  '../../../core/templates/base-template',
+  "../../../core/templates/base-template",
 );
 
 const SKIP_DIRS = new Set([
-  '.git',
-  'node_modules',
-  '.next',
-  'dist',
-  '.turbo',
-  '.husky/_',
+  ".git",
+  "node_modules",
+  ".next",
+  "dist",
+  ".turbo",
+  ".husky/_",
 ]);
 
-const SKIP_FILES = new Set([
-  '.gitmodules',
-  'pnpm-lock.yaml',
-]);
+const SKIP_FILES = new Set([".gitmodules", "pnpm-lock.yaml"]);
 
 const LANGUAGE_MAP: Record<string, string> = {
-  '.ts': 'typescript',
-  '.tsx': 'typescript',
-  '.js': 'javascript',
-  '.mjs': 'javascript',
-  '.json': 'json',
-  '.css': 'css',
-  '.md': 'markdown',
-  '.sql': 'sql',
-  '.toml': 'toml',
-  '.yml': 'yaml',
-  '.yaml': 'yaml',
-  '.env': 'bash',
-  '.example': 'bash',
+  ".ts": "typescript",
+  ".tsx": "typescript",
+  ".js": "javascript",
+  ".mjs": "javascript",
+  ".json": "json",
+  ".css": "css",
+  ".md": "markdown",
+  ".sql": "sql",
+  ".toml": "toml",
+  ".yml": "yaml",
+  ".yaml": "yaml",
+  ".env": "bash",
+  ".example": "bash",
 };
 
 function getLanguage(filePath: string): string {
   const ext = path.extname(filePath);
   if (LANGUAGE_MAP[ext]) return LANGUAGE_MAP[ext];
-  if (filePath.endsWith('.env.example')) return 'bash';
-  return 'text';
+  if (filePath.endsWith(".env.example")) return "bash";
+  return "text";
 }
 
-function walkDir(dir: string, base: string, artifacts: GeneratedArtifact[], replacements: Record<string, string>): void {
+function walkDir(
+  dir: string,
+  base: string,
+  artifacts: GeneratedArtifact[],
+  replacements: Record<string, string>,
+): void {
   const entries = fs.readdirSync(dir, { withFileTypes: true });
 
   for (const entry of entries) {
     if (SKIP_DIRS.has(entry.name)) continue;
 
     const fullPath = path.join(dir, entry.name);
-    const relativePath = path.relative(base, fullPath).replace(/\\/g, '/');
+    const relativePath = path.relative(base, fullPath).replace(/\\/g, "/");
 
     if (entry.isDirectory()) {
       walkDir(fullPath, base, artifacts, replacements);
     } else if (entry.isFile()) {
       if (SKIP_FILES.has(entry.name)) continue;
 
-      let content = fs.readFileSync(fullPath, 'utf-8');
+      let content = fs.readFileSync(fullPath, "utf-8");
 
       // Apply template replacements
       for (const [key, value] of Object.entries(replacements)) {
-        content = content.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
+        content = content.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), value);
       }
 
       artifacts.push({
@@ -72,8 +78,8 @@ function walkDir(dir: string, base: string, artifacts: GeneratedArtifact[], repl
         content,
         language: getLanguage(entry.name),
         metadata: {
-          generator: 'base-template',
-          source: 'base-template submodule',
+          generator: "base-template",
+          source: "base-template submodule",
         },
       });
     }
@@ -81,8 +87,8 @@ function walkDir(dir: string, base: string, artifacts: GeneratedArtifact[], repl
 }
 
 export class BaseTemplateGenerator implements Generator {
-  readonly name = 'base-template';
-  readonly version = '1.0.0';
+  readonly name = "base-template";
+  readonly version = "1.0.0";
   readonly supportedFeatures: readonly FeatureFlag[] = [];
   readonly supportedArchitectures: readonly ArchitectureType[] = [];
 
