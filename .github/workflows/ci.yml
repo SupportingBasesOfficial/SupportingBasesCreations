@@ -29,7 +29,7 @@ jobs:
           version: 9
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
@@ -45,7 +45,7 @@ jobs:
           version: 9
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
@@ -61,7 +61,7 @@ jobs:
           version: 9
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @sbc/shared build
@@ -79,7 +79,7 @@ jobs:
           version: 9
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
@@ -95,7 +95,7 @@ jobs:
           version: 9
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @sbc/shared build
@@ -116,7 +116,7 @@ jobs:
           version: 9
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
@@ -144,7 +144,7 @@ jobs:
           version: 9
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @sbc/shared build
@@ -192,7 +192,7 @@ jobs:
           format: sarif
           output: trivy-results.sarif
           severity: CRITICAL,HIGH
-          exit-code: '1'
+          exit-code: "1"
           limit-severities-for-sarif: true
           skip-dirs: packages/core/templates/base-template
           trivyignores: .trivyignore.yaml
@@ -225,7 +225,7 @@ jobs:
           version: 9
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
@@ -252,7 +252,7 @@ jobs:
         uses: zaproxy/action-baseline@v0.13.0
         with:
           target: ${{ needs.preview-deploy.outputs.preview-url }}
-          cmd_options: '-a -j'
+          cmd_options: "-a -j"
           fail_action: false
       - name: Upload ZAP report
         if: always()
@@ -274,7 +274,7 @@ jobs:
           version: 9
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
