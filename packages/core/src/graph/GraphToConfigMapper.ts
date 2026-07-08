@@ -5,6 +5,15 @@ import {
   type ProjectConfig,
 } from "@sbc/shared";
 
+function toCamelCase(input: string): string {
+  return input
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+(.)/g, (_, ch) => ch.toUpperCase())
+    .replace(/^[A-Z]/, (ch) => ch.toLowerCase())
+    .replace(/[^a-zA-Z0-9]/g, "");
+}
+
 export class GraphToConfigMapper {
   private graph: ArchitectureGraph;
   private projectName: string;
@@ -60,7 +69,7 @@ export class GraphToConfigMapper {
     node: GraphNode,
   ): NonNullable<ProjectConfig["entities"]>[0] {
     return {
-      name: node.data.label,
+      name: toCamelCase(node.data.label),
       fields: (node.data.fields ?? []).map((f) => ({
         name: f.name,
         type: f.type,
@@ -69,7 +78,7 @@ export class GraphToConfigMapper {
         nullable: f.nullable ?? false,
       })),
       features: node.data.features ?? [],
-      tableName: node.data.tableName ?? node.data.label.toLowerCase(),
+      tableName: node.data.tableName ?? toCamelCase(node.data.label),
     };
   }
 
@@ -81,10 +90,10 @@ export class GraphToConfigMapper {
       .filter((e) => e.source === node.id)
       .map((e) => this.graph.nodes.find((n) => n.id === e.target))
       .filter((n) => n?.type === NodeType.CLOUD_DATABASE)
-      .map((n) => n!.data.label);
+      .map((n) => toCamelCase(n!.data.label));
 
     return {
-      name: node.data.label,
+      name: toCamelCase(node.data.label),
       entities: connectedEntities,
       type: node.data.method ?? "SYNC",
     };
@@ -132,7 +141,7 @@ export class GraphToConfigMapper {
       styling: primary?.data.styling ?? "TAILWIND",
       features,
       pages: frontendNodes
-        .map((n) => n.data.route ?? n.data.label)
+        .map((n) => n.data.route ?? toCamelCase(n.data.label))
         .filter(Boolean),
     };
   }
