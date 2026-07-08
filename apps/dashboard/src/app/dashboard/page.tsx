@@ -93,9 +93,11 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (oauthStatus?.success) {
-      toast.success(`${oauthStatus.provider} connected successfully`);
+      toast.success(`${oauthStatus.provider} conectado com sucesso`);
     } else if (oauthStatus && !oauthStatus.success) {
-      toast.error(`OAuth failed: ${oauthStatus.error ?? "unknown error"}`);
+      toast.error(
+        `Falha no OAuth: ${oauthStatus.error ?? "erro desconhecido"}`,
+      );
     }
   }, [oauthStatus, toast]);
 
@@ -119,13 +121,13 @@ export default function DashboardPage() {
       } else if ((e.ctrlKey || e.metaKey) && e.key === "s") {
         e.preventDefault();
         saveRef.current();
-        toast.success("Graph saved to cloud");
+        toast.success("Arquitetura salva no navegador");
       } else if (e.key === "Delete" && !isInput) {
         e.preventDefault();
         const state = useGraphStore.getState();
         if (state.selectedNodeId) {
           state.removeNode(state.selectedNodeId);
-          toast.info("Node deleted");
+          toast.info("Bloco excluído");
         }
       } else if ((e.ctrlKey || e.metaKey) && e.key === "d" && !isInput) {
         e.preventDefault();
@@ -143,7 +145,7 @@ export default function DashboardPage() {
               data: { ...node.data, label: `${node.data.label} (copy)` },
             };
             state.addNode(clone);
-            toast.info("Node duplicated");
+            toast.info("Bloco duplicado");
           }
         }
       }
@@ -164,7 +166,7 @@ export default function DashboardPage() {
               SBC <span className="text-blue-600">ASP</span>
             </Link>
             <span className="hidden rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-500 dark:bg-gray-800 dark:text-gray-400 sm:inline">
-              Architecture Design Platform
+              Plataforma de Design de Arquitetura
             </span>
           </div>
 
@@ -180,12 +182,12 @@ export default function DashboardPage() {
                 {oauthStatus.success ? (
                   <>
                     <CheckCircle2 size={12} />
-                    {oauthStatus.provider} connected
+                    {oauthStatus.provider} conectado
                   </>
                 ) : (
                   <>
                     <AlertCircle size={12} />
-                    OAuth failed
+                    Falha no OAuth
                   </>
                 )}
                 <button
@@ -198,7 +200,9 @@ export default function DashboardPage() {
             )}
 
             <Suspense
-              fallback={<div className="text-xs text-gray-400">Loading...</div>}
+              fallback={
+                <div className="text-xs text-gray-400">Carregando...</div>
+              }
             >
               {roomId && <PresenceAvatars roomId={roomId} />}
             </Suspense>
@@ -208,14 +212,14 @@ export default function DashboardPage() {
               className="hidden items-center gap-1.5 text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 sm:flex"
             >
               <FolderKanban size={16} />
-              Projects
+              Projetos
             </Link>
             <Link
               href="/settings"
               className="hidden items-center gap-1.5 text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 sm:flex"
             >
               <Settings size={16} />
-              Settings
+              Configurações
             </Link>
             <div className="h-6 w-px bg-gray-200 dark:bg-gray-700" />
             <AICopilot />
@@ -233,7 +237,7 @@ export default function DashboardPage() {
               }`}
             >
               <Cloud size={16} />
-              {cloudConfig ? "Connected" : "Cloud Setup"}
+              {cloudConfig ? "Conectado" : "Configurar Nuvem"}
             </button>
             <ExportZipButton />
             <DeployButton

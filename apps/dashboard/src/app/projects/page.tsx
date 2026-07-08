@@ -59,27 +59,27 @@ export default function ProjectsPage() {
         }),
       });
       if (res.ok) {
-        toast.success("Project created");
+        toast.success("Projeto criado");
         setNewName("");
         setShowNew(false);
         loadProjects();
       } else {
-        toast.error("Failed to create project");
+        toast.error("Falha ao criar projeto");
       }
     } catch {
-      toast.error("Failed to create project");
+      toast.error("Falha ao criar projeto");
     }
     setCreating(false);
   };
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+    if (!confirm(`Excluir "${name}"? Isso não pode ser desfeito.`)) return;
     const res = await fetch(`/api/projects/${id}`, { method: "DELETE" });
     if (res.ok) {
-      toast.success("Project deleted");
+      toast.success("Projeto excluído");
       loadProjects();
     } else {
-      toast.error("Failed to delete project");
+      toast.error("Falha ao excluir projeto");
     }
   };
 
@@ -92,12 +92,12 @@ export default function ProjectsPage() {
             className="flex items-center gap-1.5 text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
           >
             <ArrowLeft size={16} />
-            Back to Dashboard
+            Voltar ao Painel
           </Link>
           <span className="text-gray-300">/</span>
           <h1 className="flex items-center gap-2 text-lg font-bold tracking-tight text-gray-800 dark:text-gray-100">
             <FolderKanban size={20} className="text-blue-600" />
-            Projects
+            Projetos
           </h1>
         </div>
         <div className="flex items-center gap-3">
@@ -109,21 +109,21 @@ export default function ProjectsPage() {
       <div className="mx-auto w-full max-w-4xl flex-1 overflow-auto p-6">
         <div className="mb-6 flex items-center justify-between">
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            {projects.length} project{projects.length !== 1 ? "s" : ""}
+            {projects.length} projeto{projects.length !== 1 ? "s" : ""}
           </p>
           <button
             onClick={() => setShowNew(!showNew)}
             className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
           >
             <Plus size={16} />
-            New Project
+            Novo Projeto
           </button>
         </div>
 
         {showNew && (
           <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
             <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Project Name
+              Nome do Projeto
             </label>
             <div className="flex gap-2">
               <input
@@ -143,7 +143,7 @@ export default function ProjectsPage() {
                 {creating ? (
                   <Loader2 size={16} className="animate-spin" />
                 ) : (
-                  "Create"
+                  "Criar"
                 )}
               </button>
             </div>
@@ -161,7 +161,7 @@ export default function ProjectsPage() {
               className="mb-4 text-gray-300 dark:text-gray-700"
             />
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              No projects yet. Create your first architecture project.
+              Nenhum projeto ainda. Crie sua primeira arquitetura.
             </p>
           </div>
         ) : (
@@ -179,7 +179,8 @@ export default function ProjectsPage() {
                     {project.name}
                   </h3>
                   <p className="mt-1 text-xs text-gray-400">
-                    Updated {new Date(project.updated_at).toLocaleDateString()}
+                    Atualizado{" "}
+                    {new Date(project.updated_at).toLocaleDateString()}
                   </p>
                 </Link>
                 <div className="mt-3 flex items-center justify-between">
@@ -187,7 +188,7 @@ export default function ProjectsPage() {
                     href={`/dashboard?project=${project.id}`}
                     className="text-xs font-medium text-blue-600 hover:underline"
                   >
-                    Open →
+                    Abrir →
                   </Link>
                   <button
                     onClick={() => handleDelete(project.id, project.name)}

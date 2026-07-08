@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, type DragEvent } from "react";
+import { useCallback, type DragEvent } from "react";
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -36,8 +36,6 @@ function ArchitectureCanvasInner() {
   const removeEdge = useGraphStore((s) => s.removeEdge);
   const setSelectedNode = useGraphStore((s) => s.setSelectedNode);
   const selectedNodeId = useGraphStore((s) => s.selectedNodeId);
-  const undo = useGraphStore((s) => s.undo);
-  const redo = useGraphStore((s) => s.redo);
   const { getErrorForNode, getErrorForEdge } = useGraphValidation();
   const toast = useToast();
 
@@ -166,23 +164,6 @@ function ArchitectureCanvasInner() {
     },
     [addNode, nodes.length],
   );
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "z" && !e.shiftKey) {
-        e.preventDefault();
-        undo();
-      } else if (
-        (e.metaKey || e.ctrlKey) &&
-        (e.key === "y" || (e.key === "z" && e.shiftKey))
-      ) {
-        e.preventDefault();
-        redo();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [undo, redo]);
 
   return (
     <div

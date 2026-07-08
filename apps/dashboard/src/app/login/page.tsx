@@ -41,7 +41,9 @@ export default function LoginPage() {
       if (error) {
         setError(error.message);
       } else if (needsEmailConfirmation) {
-        setInfo("Account created! Check your email for a verification link to complete sign up.");
+        setInfo(
+          "Conta criada! Verifique seu email para o link de confirmação.",
+        );
         setMode("signin");
       } else {
         router.replace("/dashboard");
@@ -68,7 +70,7 @@ export default function LoginPage() {
             </h1>
           </div>
           <p className="text-sm text-gray-400 dark:text-gray-500">
-            Architecture Design Platform
+            Plataforma de Design de Arquitetura
           </p>
         </div>
 
@@ -102,11 +104,13 @@ export default function LoginPage() {
 
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Password
+              Senha
             </label>
             <input
               type="password"
-              autoComplete={mode === "signin" ? "current-password" : "new-password"}
+              autoComplete={
+                mode === "signin" ? "current-password" : "new-password"
+              }
               required
               minLength={6}
               value={password}
@@ -122,7 +126,7 @@ export default function LoginPage() {
             className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-            {mode === "signin" ? "Sign In" : "Sign Up"}
+            {mode === "signin" ? "Entrar" : "Cadastrar"}
           </button>
         </form>
 
@@ -132,7 +136,7 @@ export default function LoginPage() {
           </div>
           <div className="relative flex justify-center text-xs">
             <span className="bg-white px-3 text-xs text-gray-400 dark:bg-gray-900 dark:text-gray-500">
-              or
+              ou
             </span>
           </div>
         </div>
@@ -142,11 +146,11 @@ export default function LoginPage() {
           className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2.5 font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
         >
           <Github className="h-5 w-5" />
-          Continue with GitHub
+          Continuar com GitHub
         </button>
 
         <p className="text-center text-sm text-gray-500 dark:text-gray-400">
-          {mode === "signin" ? "Don't have an account? " : "Already have an account? "}
+          {mode === "signin" ? "Não tem conta? " : "Já tem conta? "}
           <button
             onClick={() => {
               setMode(mode === "signin" ? "signup" : "signin");
@@ -154,7 +158,7 @@ export default function LoginPage() {
             }}
             className="font-medium text-blue-600 hover:underline"
           >
-            {mode === "signin" ? "Sign up" : "Sign in"}
+            {mode === "signin" ? "Cadastre-se" : "Entrar"}
           </button>
         </p>
       </div>
