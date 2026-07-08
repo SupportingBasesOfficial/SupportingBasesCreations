@@ -52,7 +52,7 @@ export function ExportZipButton() {
       ) : (
         <Download size={16} />
       )}
-      Export
+      Export JSON
     </button>
   );
 }

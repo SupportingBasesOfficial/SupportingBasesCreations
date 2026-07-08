@@ -33,7 +33,12 @@ import {
   GitHubActionsGenerator,
   DocsGenerator,
 } from "@sbc/generators";
-import type { CloudConfig, DeployProgress, ArchitectureGraph } from "@sbc/shared";
+import type {
+  CloudConfig,
+  DeployProgress,
+  ArchitectureGraph,
+} from "@sbc/shared";
+import { createServerSupabaseClient } from "../../../lib/supabase-server";
 
 export const maxDuration = 300;
 export const runtime = "nodejs";
@@ -57,6 +62,18 @@ async function checkRateLimit(ip: string): Promise<boolean> {
 }
 
 export async function POST(request: NextRequest) {
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json(
+      { success: false, error: "Unauthorized" },
+      { status: 401 },
+    );
+  }
+
   const ip =
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
   if (!(await checkRateLimit(ip))) {
@@ -74,10 +91,11 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { projectName, config, graph } = body as {
+    const { projectName, config, graph, deployId } = body as {
       projectName: string;
       config: CloudConfig;
       graph: { nodes: unknown[]; edges: unknown[] };
+      deployId?: string;
     };
 
     if (!projectName || !config || !graph) {
@@ -90,12 +108,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const kv = getKV();
+    const logKey = deployId ? `deploy-logs:${deployId}` : null;
+
     const encoder = new TextEncoder();
 
     const stream = new ReadableStream({
       async start(controller) {
-        const sendProgress = (p: DeployProgress) => {
+        const sendProgress = async (p: DeployProgress) => {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(p)}\n\n`));
+          if (logKey && kv) {
+            try {
+              await kv.rpush(
+                logKey,
+                JSON.stringify({ type: "progress", ...p }),
+              );
+              await kv.set(`${logKey}:ttl`, "1", 3600);
+            } catch {
+              /* best-effort logging */
+            }
+          }
         };
 
         try {
@@ -113,10 +145,11 @@ export async function POST(request: NextRequest) {
 
           const entities = (cfg.entities ?? []).map((e) => {
             const fields = e.fields.map(
-              (f) => new Field(f.name, f.type as unknown as Field["type"], {
-                nullable: f.nullable,
-                unique: f.unique,
-              }),
+              (f) =>
+                new Field(f.name, f.type as unknown as Field["type"], {
+                  nullable: f.nullable,
+                  unique: f.unique,
+                }),
             );
             return new Entity(e.name, fields, {
               tableName: e.tableName,
@@ -128,7 +161,9 @@ export async function POST(request: NextRequest) {
             (s) =>
               new Service(
                 s.name,
-                (s.type === "ASYNC" ? ServiceType.ASYNC : ServiceType.SYNC) as ServiceType,
+                (s.type === "ASYNC"
+                  ? ServiceType.ASYNC
+                  : ServiceType.SYNC) as ServiceType,
                 { endpoints: s.entities },
               ),
           );
@@ -140,7 +175,8 @@ export async function POST(request: NextRequest) {
             entities,
             services,
             frontend: {
-              framework: (cfg.frontend?.framework ?? "NEXTJS") as FrontendFramework,
+              framework: (cfg.frontend?.framework ??
+                "NEXTJS") as FrontendFramework,
               styling: (cfg.frontend?.styling ?? "TAILWIND") as StylingSystem,
               components: ComponentSystem.SHADCN,
               features: cfg.frontend?.features ?? [],
@@ -150,7 +186,8 @@ export async function POST(request: NextRequest) {
               cloud: (cfg.infrastructure?.cloud ?? "VERCEL") as CloudProvider,
               containerization: Containerization.NONE,
               orchestration: Orchestration.NONE,
-              database: (cfg.infrastructure?.database ?? "POSTGRESQL") as DatabaseType,
+              database: (cfg.infrastructure?.database ??
+                "POSTGRESQL") as DatabaseType,
               cache: (cfg.infrastructure?.cache ?? "NONE") as CacheType,
               queue: (cfg.infrastructure?.queue ?? "NONE") as QueueType,
               cdn: cfg.infrastructure?.cdn,
@@ -190,6 +227,28 @@ export async function POST(request: NextRequest) {
 
           const deployResult = await pipeline.execute();
 
+          if (logKey && kv) {
+            try {
+              await kv.rpush(
+                logKey,
+                JSON.stringify({ type: "result", ...deployResult }),
+              );
+              await kv.rpush(
+                logKey,
+                JSON.stringify({
+                  type: "done",
+                  status: deployResult.success ? "complete" : "failed",
+                }),
+              );
+              await kv.set(
+                `deploy-status:${deployId}`,
+                deployResult.success ? "complete" : "failed",
+              );
+            } catch {
+              /* best-effort */
+            }
+          }
+
           controller.enqueue(
             encoder.encode(`data: ${JSON.stringify(deployResult)}\n\n`),
           );
@@ -200,6 +259,21 @@ export async function POST(request: NextRequest) {
             success: false,
             error: err instanceof Error ? err.message : String(err),
           };
+          if (logKey && kv) {
+            try {
+              await kv.rpush(
+                logKey,
+                JSON.stringify({ type: "result", ...errorResult }),
+              );
+              await kv.rpush(
+                logKey,
+                JSON.stringify({ type: "done", status: "failed" }),
+              );
+              await kv.set(`deploy-status:${deployId}`, "failed");
+            } catch {
+              /* best-effort */
+            }
+          }
           controller.enqueue(
             encoder.encode(`data: ${JSON.stringify(errorResult)}\n\n`),
           );

@@ -28,7 +28,13 @@ import {
 } from "../../components/Skeletons";
 import { useOAuthCallback } from "../../hooks/useOAuthCallback";
 import { useGraphPersistence } from "../../hooks/useGraphPersistence";
-import { Cloud, AlertCircle, CheckCircle2, FolderKanban, Settings } from "lucide-react";
+import {
+  Cloud,
+  AlertCircle,
+  CheckCircle2,
+  FolderKanban,
+  Settings,
+} from "lucide-react";
 import Link from "next/link";
 import { useDeployStore } from "../../store/deployStore";
 import { useGraphStore } from "../../store/graphStore";
@@ -51,7 +57,24 @@ export default function DashboardPage() {
     const room = params.get("room");
     setRoomId(room ?? `sbc-${Math.random().toString(36).slice(2, 10)}`);
 
-    Promise.resolve(load()).finally(() => setIsLoading(false));
+    const cloudParam = params.get("cloud");
+    if (cloudParam === "1") {
+      setShowCloudSettings(true);
+    }
+
+    const projectId = params.get("project");
+    const loadPromise = projectId
+      ? fetch(`/api/projects/${projectId}`)
+          .then((res) => res.json())
+          .then((data) => {
+            if (data?.graph_data) {
+              useGraphStore.getState().loadGraph(data.graph_data);
+            }
+          })
+          .catch(() => load())
+      : load();
+
+    Promise.resolve(loadPromise).finally(() => setIsLoading(false));
 
     async function loadCloudConfig() {
       try {
@@ -133,7 +156,10 @@ export default function DashboardPage() {
       <div className="flex h-screen flex-col overflow-hidden bg-gray-50 dark:bg-gray-950">
         <header className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-gray-800 dark:bg-gray-900">
           <div className="flex items-center gap-3">
-            <Link href="/" className="text-lg font-bold tracking-tight text-gray-800 dark:text-gray-100 hover:opacity-80 transition-opacity">
+            <Link
+              href="/dashboard"
+              className="text-lg font-bold tracking-tight text-gray-800 dark:text-gray-100 hover:opacity-80 transition-opacity"
+            >
               SBC <span className="text-blue-600">ASP</span>
             </Link>
             <span className="hidden rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-500 dark:bg-gray-800 dark:text-gray-400 sm:inline">
@@ -209,7 +235,16 @@ export default function DashboardPage() {
               {cloudConfig ? "Connected" : "Cloud Setup"}
             </button>
             <ExportZipButton />
-            <DeployButton onViewLogs={() => { setDeployLogId(`deploy-${Date.now()}`); setShowDeployLogs(true); }} />
+            <DeployButton
+              onViewLogs={(id) => {
+                setDeployLogId(id);
+                setShowDeployLogs(true);
+              }}
+              onDeployStart={(id) => {
+                setDeployLogId(id);
+                setShowDeployLogs(true);
+              }}
+            />
           </div>
         </header>
 

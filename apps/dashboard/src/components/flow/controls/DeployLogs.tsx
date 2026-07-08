@@ -17,17 +17,22 @@ interface DeployLogsProps {
 
 export function DeployLogs({ deployId, open, onClose }: DeployLogsProps) {
   const [logs, setLogs] = useState<DeployLogEntry[]>([]);
-  const [status, setStatus] = useState<"streaming" | "complete" | "failed">("streaming");
+  const [status, setStatus] = useState<"streaming" | "complete" | "failed">(
+    "streaming",
+  );
   const [connected, setConnected] = useState(false);
   const logEndRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
 
-  const addLog = useCallback((message: string, level: DeployLogEntry["level"] = "info") => {
-    setLogs((prev) => [
-      ...prev,
-      { timestamp: new Date().toLocaleTimeString(), message, level },
-    ]);
-  }, []);
+  const addLog = useCallback(
+    (message: string, level: DeployLogEntry["level"] = "info") => {
+      setLogs((prev) => [
+        ...prev,
+        { timestamp: new Date().toLocaleTimeString(), message, level },
+      ]);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!open || !deployId) return;
@@ -65,14 +70,41 @@ export function DeployLogs({ deployId, open, onClose }: DeployLogsProps) {
           return;
         }
         if (data.log) {
-          const level: DeployLogEntry["level"] = data.log.includes("error")
-            ? "error"
-            : data.log.includes("warn")
-              ? "warn"
-              : data.log.includes("success") || data.log.includes("complete")
-                ? "success"
-                : "info";
-          addLog(data.log, level);
+          const rawLog = data.log;
+          let message = "";
+          let level: DeployLogEntry["level"] = "info";
+
+          try {
+            const parsed =
+              typeof rawLog === "string" ? JSON.parse(rawLog) : rawLog;
+            if (parsed.type === "progress") {
+              message =
+                parsed.message ?? `${parsed.step}: ${parsed.percentage}%`;
+              level = parsed.step === "failed" ? "error" : "info";
+            } else if (parsed.type === "result") {
+              message = parsed.success
+                ? `Deploy succeeded — GitHub: ${parsed.githubUrl ?? "n/a"}, Vercel: ${parsed.vercelUrl ?? "n/a"}`
+                : `Deploy failed: ${parsed.error ?? "unknown"}`;
+              level = parsed.success ? "success" : "error";
+            } else if (parsed.type === "done") {
+              message = `Deploy ${parsed.status}`;
+              level = parsed.status === "complete" ? "success" : "error";
+            } else {
+              message =
+                typeof rawLog === "string" ? rawLog : JSON.stringify(parsed);
+            }
+          } catch {
+            message = typeof rawLog === "string" ? rawLog : String(rawLog);
+          }
+
+          if (!message) message = String(rawLog);
+
+          if (level === "info" && /error|fail/i.test(message)) level = "error";
+          else if (level === "info" && /warn/i.test(message)) level = "warn";
+          else if (level === "info" && /success|complete/i.test(message))
+            level = "success";
+
+          addLog(message, level);
         }
       } catch {
         // ignore parse errors

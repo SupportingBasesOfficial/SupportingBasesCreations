@@ -1,17 +1,9 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useGraphStore } from "../store/graphStore";
 import { useDeployStore } from "../store/deployStore";
-import {
-  CloudDeployPipeline,
-  GenerationEngine,
-  GeneratorRegistry,
-  Project,
-  Entity,
-  Field,
-} from "@sbc/core";
-import type { DeployResult } from "@sbc/shared";
+import type { DeployResult, DeployProgress } from "@sbc/shared";
 
 export function useCloudDeploy() {
   const isDeploying = useDeployStore((s) => s.isDeploying);
@@ -22,7 +14,8 @@ export function useCloudDeploy() {
   const updateProgress = useDeployStore((s) => s.updateProgress);
   const setResult = useDeployStore((s) => s.setResult);
   const reset = useDeployStore((s) => s.reset);
-  const toProjectConfig = useGraphStore((s) => s.toProjectConfig);
+  const getGraph = useGraphStore((s) => s.getGraph);
+  const [deployId, setDeployId] = useState<string | null>(null);
 
   const deploy = useCallback(
     async (projectName: string): Promise<DeployResult> => {
@@ -37,68 +30,66 @@ export function useCloudDeploy() {
 
       startDeploy();
 
+      const id = `deploy-${Date.now()}`;
+      setDeployId(id);
+      const graph = getGraph();
       try {
-        updateProgress({
-          step: "generating",
-          message: "Generating project artifacts...",
-          percentage: 5,
+        const res = await fetch("/api/deploy", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            projectName,
+            config: cloudConfig,
+            graph,
+            deployId: id,
+          }),
         });
 
-        const config = toProjectConfig(projectName);
+        if (!res.ok || !res.body) {
+          const errData = await res.json().catch(() => ({}));
+          const errorResult: DeployResult = {
+            success: false,
+            error: errData.error ?? `Deploy failed with status ${res.status}`,
+          };
+          setResult(errorResult);
+          return errorResult;
+        }
 
-        const registry = new GeneratorRegistry();
-        const engine = new GenerationEngine(registry);
-
-        const buildProjectFromConfig = (raw: unknown) => {
-          const parsed = raw as Record<string, unknown>;
-          const entities = (
-            parsed.entities as Array<Record<string, unknown>>
-          )?.map((e) => {
-            const fields = (e.fields as Array<Record<string, unknown>>)?.map(
-              (f) => new Field(f.name as string, f.type as never, {}),
-            );
-            return new Entity(e.name as string, fields ?? [], {
-              features: (e.features ?? []) as never,
-            });
-          });
-          return new Project(parsed.name as string, {
-            entities: entities ?? [],
-            architecture: parsed.architecture as never,
-            frontend: parsed.frontend as never,
-            infrastructure: parsed.infrastructure as never,
-          });
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let deployResult: DeployResult = {
+          success: false,
+          error: "Deploy stream ended unexpectedly",
         };
 
-        const project = buildProjectFromConfig(config);
-        const validationResult = project.validate();
-        if (!validationResult.valid) {
-          throw new Error(
-            `Project validation failed: ${validationResult.errors.map((e: { message: string }) => e.message).join(", ")}`,
-          );
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            const data = line.slice(6).trim();
+            if (data === "[DONE]") continue;
+
+            try {
+              const parsed = JSON.parse(data) as DeployProgress | DeployResult;
+
+              if ("step" in parsed && "percentage" in parsed) {
+                updateProgress(parsed as DeployProgress);
+              } else if ("success" in parsed) {
+                deployResult = parsed as DeployResult;
+              }
+            } catch {
+              // ignore parse errors
+            }
+          }
         }
 
-        const generationResult = await engine.generate({
-          project,
-          outputDir: "./generated",
-        });
-
-        if (!generationResult.success && generationResult.errors.length > 0) {
-          throw new Error(
-            `Generation failed: ${generationResult.errors.map((e) => e.message).join(", ")}`,
-          );
-        }
-
-        const artifacts = generationResult.artifacts;
-
-        const pipeline = new CloudDeployPipeline({
-          projectName,
-          config: cloudConfig,
-          artifacts,
-          description: config.description,
-          onProgress: (p) => updateProgress(p),
-        });
-
-        const deployResult = await pipeline.execute();
         setResult(deployResult);
         return deployResult;
       } catch (err) {
@@ -110,8 +101,16 @@ export function useCloudDeploy() {
         return errorResult;
       }
     },
-    [cloudConfig, startDeploy, updateProgress, setResult, toProjectConfig],
+    [cloudConfig, startDeploy, updateProgress, setResult, getGraph],
   );
 
-  return { deploy, isDeploying, progress, result, reset, cloudConfig };
+  return {
+    deploy,
+    isDeploying,
+    progress,
+    result,
+    reset,
+    cloudConfig,
+    deployId,
+  };
 }

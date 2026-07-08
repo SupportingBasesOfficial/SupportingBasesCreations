@@ -1,11 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseServer } from "../../../lib/supabaseServer";
+import { createServerSupabaseClient } from "../../../lib/supabase-server";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const { data, error } = await getSupabaseServer()
+    const supabase = await createServerSupabaseClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { data, error } = await supabase
       .from("architectures")
       .select("*")
+      .eq("user_id", user.id)
       .order("updated_at", { ascending: false })
       .limit(50);
 
@@ -24,6 +37,15 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createServerSupabaseClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const { name, graph_json } = body as {
       name?: string;
@@ -37,9 +59,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data, error } = await getSupabaseServer()
+    const { data, error } = await supabase
       .from("architectures")
       .insert({
+        user_id: user.id,
         name: name ?? "Untitled",
         graph_json,
       })
@@ -61,6 +84,15 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const supabase = await createServerSupabaseClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const { id, name, graph_json } = body as {
       id: string;
@@ -72,14 +104,17 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Missing id" }, { status: 400 });
     }
 
-    const updates: Record<string, unknown> = {};
+    const updates: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    };
     if (name !== undefined) updates.name = name;
     if (graph_json !== undefined) updates.graph_json = graph_json;
 
-    const { data, error } = await getSupabaseServer()
+    const { data, error } = await supabase
       .from("architectures")
       .update(updates)
       .eq("id", id)
+      .eq("user_id", user.id)
       .select()
       .single();
 
@@ -98,6 +133,15 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const supabase = await createServerSupabaseClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 
@@ -105,10 +149,11 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Missing id" }, { status: 400 });
     }
 
-    const { error } = await getSupabaseServer()
+    const { error } = await supabase
       .from("architectures")
       .delete()
-      .eq("id", id);
+      .eq("id", id)
+      .eq("user_id", user.id);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

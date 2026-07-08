@@ -2,14 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import {
-  ArrowLeft,
-  Cloud,
-  Moon,
-  Sun,
-  User,
-  Loader2,
-} from "lucide-react";
+import { ArrowLeft, Cloud, Moon, Sun, User, Loader2 } from "lucide-react";
 import { UserMenu } from "../../components/UserMenu";
 import { useSession } from "../../hooks/useSession";
 import { ToastContainer, useToast } from "../../components/Toast";
@@ -78,13 +71,17 @@ export default function SettingsPage() {
           {user ? (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500 dark:text-gray-400">Email</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                  Email
+                </span>
                 <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
                   {user.email}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500 dark:text-gray-400">User ID</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                  User ID
+                </span>
                 <span className="text-xs font-mono text-gray-600 dark:text-gray-300">
                   {user.id.slice(0, 8)}...
                 </span>
@@ -136,7 +133,7 @@ export default function SettingsPage() {
             Configure GitHub, Vercel, and Supabase tokens for deployment.
           </p>
           <Link
-            href="/?cloud=1"
+            href="/dashboard?cloud=1"
             className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
           >
             <Cloud size={14} />

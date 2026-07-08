@@ -12,7 +12,7 @@ export function ShareDialog() {
 
   const shareUrl =
     typeof window !== "undefined"
-      ? `${window.location.origin}?room=${roomId}${password ? `&pwd=${password}` : ""}`
+      ? `${window.location.origin}/dashboard?room=${roomId}${password ? `&pwd=${password}` : ""}`
       : "";
 
   const handleCopy = () => {

@@ -122,6 +122,31 @@ function ArchitectureCanvasInner() {
         data: {
           label: `${config.label} ${nodes.length + 1}`,
           description: config.description,
+          ...(nodeType === NodeType.CLOUD_DATABASE && {
+            fields: [
+              {
+                name: "id",
+                type: "uuid",
+                required: true,
+                unique: true,
+                nullable: false,
+              },
+            ],
+            tableName: `${config.label.toLowerCase()}_${nodes.length + 1}`,
+            features: [],
+          }),
+          ...(nodeType === NodeType.FRONTEND_COMPONENT && {
+            framework: "NEXTJS",
+            styling: "TAILWIND",
+            features: [],
+          }),
+          ...(nodeType === NodeType.API_ROUTE && {
+            method: "GET",
+            route: "/api",
+          }),
+          ...(nodeType === NodeType.AUTH_SERVICE && {
+            provider: "supabase",
+          }),
         },
       };
 

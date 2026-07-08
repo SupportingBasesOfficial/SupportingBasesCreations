@@ -13,7 +13,15 @@ export function useCollaboration(roomId: string, password?: string) {
   useEffect(() => {
     if (!roomId) return;
 
-    const p = new YjsCollaborationProvider({ roomId, password });
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    const p = new YjsCollaborationProvider({
+      roomId,
+      password,
+      supabaseUrl,
+      supabaseKey,
+    });
     p.onPresence((updatedPeers) => setPeers(updatedPeers));
 
     p.connect()

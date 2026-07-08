@@ -12,17 +12,21 @@ export async function GET(
 
   if (error) {
     return NextResponse.redirect(
-      `${origin}/?oauth_error=${encodeURIComponent(error)}`,
+      `${origin}/dashboard?oauth_error=${encodeURIComponent(error)}`,
     );
   }
 
   if (!code || !state) {
-    return NextResponse.redirect(`${origin}/?oauth_error=missing_params`);
+    return NextResponse.redirect(
+      `${origin}/dashboard?oauth_error=missing_params`,
+    );
   }
 
   const storedState = request.cookies.get("sbc-oauth-state")?.value;
-  if (storedState && storedState !== state) {
-    return NextResponse.redirect(`${origin}/?oauth_error=state_mismatch`);
+  if (!storedState || storedState !== state) {
+    return NextResponse.redirect(
+      `${origin}/dashboard?oauth_error=state_mismatch`,
+    );
   }
 
   const redirectUri = `${origin}/api/oauth/${provider}/callback`;
@@ -50,7 +54,9 @@ export async function GET(
   const clientSecret = clientSecrets[provider];
 
   if (!tokenEndpoint || !clientId) {
-    return NextResponse.redirect(`${origin}/?oauth_error=unknown_provider`);
+    return NextResponse.redirect(
+      `${origin}/dashboard?oauth_error=unknown_provider`,
+    );
   }
 
   try {
@@ -73,12 +79,9 @@ export async function GET(
 
     if (!res.ok) {
       const errText = await res.text();
-      console.error(
-        `OAuth token exchange failed for ${provider}:`,
-        errText,
-      );
+      console.error(`OAuth token exchange failed for ${provider}:`, errText);
       return NextResponse.redirect(
-        `${origin}/?oauth_error=token_exchange_failed`,
+        `${origin}/dashboard?oauth_error=token_exchange_failed`,
       );
     }
 
@@ -86,19 +89,20 @@ export async function GET(
     const token = (data as { access_token: string }).access_token;
 
     const response = NextResponse.redirect(
-      `${origin}/?oauth_success=${provider}&token=${token}`,
+      `${origin}/dashboard?oauth_success=${provider}`,
     );
     response.cookies.set(`sbc-token-${provider}`, token, {
-      httpOnly: true,
-      secure: true,
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       maxAge: 3600,
       path: "/",
     });
+    response.cookies.delete("sbc-oauth-state");
 
     return response;
   } catch (err) {
     console.error(`OAuth callback error for ${provider}:`, err);
-    return NextResponse.redirect(`${origin}/?oauth_error=exception`);
+    return NextResponse.redirect(`${origin}/dashboard?oauth_error=exception`);
   }
 }

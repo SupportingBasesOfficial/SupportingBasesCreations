@@ -25,7 +25,8 @@ export default function AuthCallbackPage() {
       }
 
       if (code) {
-        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+        const { error: exchangeError } =
+          await supabase.auth.exchangeCodeForSession(code);
         if (exchangeError) {
           setError(exchangeError.message);
           setTimeout(() => router.replace("/login"), 3000);
@@ -34,9 +35,11 @@ export default function AuthCallbackPage() {
       }
 
       // Check if we now have a session
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (session) {
-        router.replace("/");
+        router.replace("/dashboard");
       } else {
         // No code and no session — redirect to login
         router.replace("/login");
@@ -54,7 +57,9 @@ export default function AuthCallbackPage() {
           <p className="mt-2 text-sm text-gray-500">Redirecting to login...</p>
         </div>
       ) : (
-        <p className="text-gray-500 dark:text-gray-400">Completing sign in...</p>
+        <p className="text-gray-500 dark:text-gray-400">
+          Completing sign in...
+        </p>
       )}
     </div>
   );

@@ -18,11 +18,24 @@ export function useOAuthCallback() {
     const params = new URLSearchParams(window.location.search);
     const success = params.get("oauth_success");
     const error = params.get("oauth_error");
-    const token = params.get("token");
+
+    function getCookie(name: string): string | null {
+      const match = document.cookie.match(
+        new RegExp(`(?:^|; )${name}=([^;]*)`),
+      );
+      return match ? decodeURIComponent(match[1]) : null;
+    }
 
     async function handleOAuthSuccess() {
-      if (!success || !token) return;
+      if (!success) return;
       const provider = success as "github" | "vercel" | "supabase";
+      const token = getCookie(`sbc-token-${provider}`);
+      if (!token) {
+        setOauthStatus({ provider, success: false, error: "token_not_found" });
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, "", cleanUrl);
+        return;
+      }
       setOauthStatus({ provider, success: true });
 
       let existing: Partial<CloudConfig> = {};
@@ -65,7 +78,7 @@ export function useOAuthCallback() {
       window.history.replaceState({}, "", cleanUrl);
     }
 
-    if (success && token) {
+    if (success) {
       handleOAuthSuccess();
     }
 

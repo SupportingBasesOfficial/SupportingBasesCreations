@@ -1,20 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseServer } from "../../../lib/supabaseServer";
+import { createServerSupabaseClient } from "../../../lib/supabase-server";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const { data, error } = await getSupabaseServer()
-      .from("user_settings")
-      .select("cloud_config_encrypted")
-      .limit(1)
-      .single();
+    const supabase = await createServerSupabaseClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    if (error && error.code !== "PGRST116") {
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { data, error } = await supabase
+      .from("user_settings")
+      .select("cloud_config")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({
-      cloud_config: data?.cloud_config_encrypted ?? null,
+      cloud_config: data?.cloud_config ?? null,
     });
   } catch (err) {
     return NextResponse.json(
@@ -26,6 +38,15 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createServerSupabaseClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const { cloud_config } = body as { cloud_config: unknown };
 
@@ -36,10 +57,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data, error } = await getSupabaseServer()
+    const { data, error } = await supabase
       .from("user_settings")
       .upsert(
-        { cloud_config_encrypted: cloud_config },
+        {
+          user_id: user.id,
+          cloud_config: cloud_config,
+          updated_at: new Date().toISOString(),
+        },
         { onConflict: "user_id" },
       )
       .select()

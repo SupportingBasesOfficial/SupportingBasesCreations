@@ -5,6 +5,18 @@ import {
   Project,
   Entity,
   Field,
+  Service,
+  ServiceType,
+  ArchitectureType,
+  FrontendFramework,
+  StylingSystem,
+  ComponentSystem,
+  CloudProvider,
+  Containerization,
+  Orchestration,
+  DatabaseType,
+  CacheType,
+  QueueType,
 } from "@sbc/core";
 import {
   BaseTemplateGenerator,
@@ -19,12 +31,22 @@ import {
   BillingGenerator,
 } from "@sbc/generators";
 import type { ProjectConfig } from "@sbc/shared";
+import { createServerSupabaseClient } from "../../../lib/supabase-server";
 
 export const maxDuration = 60;
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createServerSupabaseClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { config, projectName } = (await request.json()) as {
       config: ProjectConfig;
       projectName: string;
@@ -39,21 +61,56 @@ export async function POST(request: NextRequest) {
 
     const entities = (config.entities ?? []).map(
       (e) =>
-        new Entity(e.name, (e.fields ?? []).map((f) => new Field(f.name, f.type as never, {})), {
-          features: (e.features ?? []) as never,
-        }),
+        new Entity(
+          e.name,
+          (e.fields ?? []).map(
+            (f) =>
+              new Field(f.name, f.type as Field["type"], {
+                nullable: f.nullable,
+                unique: f.unique,
+              }),
+          ),
+          {
+            tableName: e.tableName,
+            features: (e.features ?? []) as Entity["options"]["features"],
+          },
+        ),
+    );
+
+    const services = (config.services ?? []).map(
+      (s) =>
+        new Service(
+          s.name,
+          s.type === "ASYNC" ? ServiceType.ASYNC : ServiceType.SYNC,
+          { endpoints: s.entities },
+        ),
     );
 
     const project = new Project(projectName, {
+      description: config.description,
+      architecture: (config.architecture ?? "SERVERLESS") as ArchitectureType,
+      regions: config.regions,
       entities,
-      architecture: (config.architecture ?? "SERVERLESS") as never,
-      frontend: (config.frontend ?? { framework: "NEXTJS", styling: "TAILWIND", features: [] }) as never,
-      infrastructure: (config.infrastructure ?? {
-        cloud: "VERCEL",
-        database: "POSTGRESQL",
-        cache: "NONE",
-        queue: "NONE",
-      }) as never,
+      services,
+      frontend: {
+        framework: (config.frontend?.framework ??
+          "NEXTJS") as FrontendFramework,
+        styling: (config.frontend?.styling ?? "TAILWIND") as StylingSystem,
+        components: ComponentSystem.SHADCN,
+        features: config.frontend?.features ?? [],
+        pages: config.frontend?.pages,
+      },
+      infrastructure: {
+        cloud: (config.infrastructure?.cloud ?? "VERCEL") as CloudProvider,
+        containerization: Containerization.NONE,
+        orchestration: Orchestration.NONE,
+        database: (config.infrastructure?.database ??
+          "POSTGRESQL") as DatabaseType,
+        cache: (config.infrastructure?.cache ?? "NONE") as CacheType,
+        queue: (config.infrastructure?.queue ?? "NONE") as QueueType,
+        cdn: config.infrastructure?.cdn,
+        regions: config.infrastructure?.regions,
+      },
     });
 
     const registry = new GeneratorRegistry();
@@ -93,11 +150,17 @@ export async function POST(request: NextRequest) {
       files,
       fileTree,
       totalFiles: files.length,
-      totalLines: files.reduce((sum, f) => sum + f.content.split("\n").length, 0),
+      totalLines: files.reduce(
+        (sum, f) => sum + f.content.split("\n").length,
+        0,
+      ),
     });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Preview generation failed" },
+      {
+        error:
+          error instanceof Error ? error.message : "Preview generation failed",
+      },
       { status: 500 },
     );
   }
@@ -118,7 +181,12 @@ interface TreeNode {
 }
 
 function buildFileTree(files: FileEntry[]): TreeNode[] {
-  const root: TreeNode = { name: "root", path: "", type: "directory", children: [] };
+  const root: TreeNode = {
+    name: "root",
+    path: "",
+    type: "directory",
+    children: [],
+  };
 
   for (const file of files) {
     const parts = file.path.split("/");

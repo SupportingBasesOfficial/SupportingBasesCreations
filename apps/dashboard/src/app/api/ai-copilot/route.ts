@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { GraphNode, GraphEdge } from "@sbc/shared";
+import { createServerSupabaseClient } from "../../../lib/supabase-server";
 
 export const maxDuration = 60;
 export const runtime = "nodejs";
@@ -56,6 +57,15 @@ Rules:
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createServerSupabaseClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { prompt } = (await request.json()) as { prompt: string };
 
     if (!prompt || prompt.trim().length < 3) {
@@ -65,34 +75,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
         {
           error:
-            "OpenAI API key not configured. Set OPENAI_API_KEY environment variable.",
+            "Groq API key not configured. Set GROQ_API_KEY environment variable. Get one free at console.groq.com",
         },
         { status: 500 },
       );
     }
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
+    const response = await fetch(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          messages: [
+            { role: "system", content: SYSTEM_PROMPT },
+            { role: "user", content: prompt },
+          ],
+          temperature: 0.7,
+          response_format: { type: "json_object" },
+          max_tokens: 2000,
+        }),
       },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: prompt },
-        ],
-        temperature: 0.7,
-        response_format: { type: "json_object" },
-        max_tokens: 2000,
-      }),
-    });
+    );
 
     if (!response.ok) {
       const errText = await response.text();
@@ -114,7 +127,11 @@ export async function POST(request: NextRequest) {
 
     const parsed = JSON.parse(content) as AIResponse;
 
-    if (!parsed.nodes || !Array.isArray(parsed.nodes) || parsed.nodes.length === 0) {
+    if (
+      !parsed.nodes ||
+      !Array.isArray(parsed.nodes) ||
+      parsed.nodes.length === 0
+    ) {
       return NextResponse.json(
         { error: "AI did not generate valid architecture nodes" },
         { status: 500 },
@@ -125,7 +142,10 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Failed to generate architecture",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to generate architecture",
       },
       { status: 500 },
     );

@@ -105,12 +105,18 @@ export function CloudSettingsModal({
     try {
       const redirectUri = `${window.location.origin}/api/oauth/${provider}/callback`;
       const state = `${provider}-${Date.now()}`;
-      sessionStorage.setItem("sbc-oauth-state", state);
+      document.cookie = `sbc-oauth-state=${state};path=/;max-age=600;SameSite=Lax`;
+
+      const ghClientId = process.env.NEXT_PUBLIC_GITHUB_OAUTH_CLIENT_ID ?? "";
+      const vercelClientId =
+        process.env.NEXT_PUBLIC_VERCEL_OAUTH_CLIENT_ID ?? "";
+      const supabaseClientId =
+        process.env.NEXT_PUBLIC_SUPABASE_OAUTH_CLIENT_ID ?? "";
 
       const authUrls: Record<ProviderId, string> = {
-        github: `https://github.com/login/oauth/authorize?client_id=Ov23liFH8qfQSEhGmJ8F&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(PROVIDER_META[provider].scopes)}&state=${state}`,
-        vercel: `https://vercel.com/oauth/authorize?client_id=&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(PROVIDER_META[provider].scopes)}&state=${state}`,
-        supabase: `https://supabase.com/oauth/authorize?client_id=&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(PROVIDER_META[provider].scopes)}&state=${state}`,
+        github: `https://github.com/login/oauth/authorize?client_id=${ghClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(PROVIDER_META[provider].scopes)}&state=${state}`,
+        vercel: `https://vercel.com/oauth/authorize?client_id=${vercelClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(PROVIDER_META[provider].scopes)}&state=${state}`,
+        supabase: `https://supabase.com/oauth/authorize?client_id=${supabaseClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(PROVIDER_META[provider].scopes)}&state=${state}`,
       };
 
       window.location.href = authUrls[provider];
@@ -160,17 +166,17 @@ export function CloudSettingsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl">
+      <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl dark:bg-gray-900">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Cloud size={20} className="text-blue-600" />
-            <h2 className="text-lg font-semibold text-gray-800">
+            <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
               Cloud Configuration
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="rounded p-1 text-gray-400 hover:bg-gray-100"
+            className="rounded p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             <span className="text-xl">&times;</span>
           </button>
@@ -183,7 +189,7 @@ export function CloudSettingsModal({
             return (
               <div
                 key={provider}
-                className="rounded-lg border border-gray-200 p-4"
+                className="rounded-lg border border-gray-200 p-4 dark:border-gray-700"
               >
                 <div className="mb-3 flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -194,10 +200,12 @@ export function CloudSettingsModal({
                       {meta.label[0]}
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-700">
+                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
                         {meta.label}
                       </p>
-                      <p className="text-xs text-gray-400">{meta.scopes}</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500">
+                        {meta.scopes}
+                      </p>
                     </div>
                   </div>
                   {state.connected ? (
@@ -209,7 +217,7 @@ export function CloudSettingsModal({
                     <button
                       onClick={() => handleOAuthConnect(provider)}
                       disabled={oauthLoading !== null}
-                      className="flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                      className="flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
                     >
                       {oauthLoading === provider ? (
                         <Loader2 size={12} className="animate-spin" />
@@ -223,7 +231,7 @@ export function CloudSettingsModal({
 
                 <div className="space-y-2">
                   <div>
-                    <label className="mb-0.5 block text-xs text-gray-500">
+                    <label className="mb-0.5 block text-xs text-gray-500 dark:text-gray-400">
                       Access Token
                     </label>
                     <input
@@ -240,11 +248,11 @@ export function CloudSettingsModal({
                         }))
                       }
                       placeholder={`Paste ${meta.label} token`}
-                      className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                     />
                   </div>
                   <div>
-                    <label className="mb-0.5 block text-xs text-gray-500">
+                    <label className="mb-0.5 block text-xs text-gray-500 dark:text-gray-400">
                       {provider === "github"
                         ? "Owner / Username"
                         : provider === "vercel"
@@ -270,7 +278,7 @@ export function CloudSettingsModal({
                             ? "team_xxx"
                             : "org_xxx"
                       }
-                      className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                     />
                   </div>
                 </div>
@@ -287,7 +295,7 @@ export function CloudSettingsModal({
             );
           })}
 
-          <div className="rounded-md bg-blue-50 px-4 py-2 text-xs text-blue-600">
+          <div className="rounded-md bg-blue-50 px-4 py-2 text-xs text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
             <ExternalLink size={12} className="mr-1 inline" />
             Tokens are stored locally in your browser and encrypted in memory.
             Never sent to any server except the provider API.

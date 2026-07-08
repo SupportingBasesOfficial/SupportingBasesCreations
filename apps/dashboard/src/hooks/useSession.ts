@@ -10,17 +10,21 @@ export function useSession() {
   const supabase = createClient();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }: { data: { session: { user: User } | null } }) => {
-      setUser(data.session?.user ?? null);
-      setLoading(false);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data }: { data: { session: { user: User } | null } }) => {
+        setUser(data.session?.user ?? null);
+        setLoading(false);
+      });
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event: string, session: { user: User } | null) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    } = supabase.auth.onAuthStateChange(
+      (_event: string, session: { user: User } | null) => {
+        setUser(session?.user ?? null);
+        setLoading(false);
+      },
+    );
 
     return () => subscription.unsubscribe();
   }, [supabase]);
@@ -54,7 +58,7 @@ export function useSession() {
   const signInWithGitHub = useCallback(async () => {
     await supabase.auth.signInWithOAuth({
       provider: "github",
-      options: { redirectTo: `${window.location.origin}/` },
+      options: { redirectTo: `${window.location.origin}/dashboard` },
     });
   }, [supabase]);
 

@@ -140,7 +140,11 @@ export default function ProjectsPage() {
                 disabled={creating || !newName.trim()}
                 className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {creating ? <Loader2 size={16} className="animate-spin" /> : "Create"}
+                {creating ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  "Create"
+                )}
               </button>
             </div>
           </div>
@@ -152,7 +156,10 @@ export default function ProjectsPage() {
           </div>
         ) : projects.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <FileCode size={48} className="mb-4 text-gray-300 dark:text-gray-700" />
+            <FileCode
+              size={48}
+              className="mb-4 text-gray-300 dark:text-gray-700"
+            />
             <p className="text-sm text-gray-500 dark:text-gray-400">
               No projects yet. Create your first architecture project.
             </p>
@@ -165,7 +172,7 @@ export default function ProjectsPage() {
                 className="group rounded-lg border border-gray-200 bg-white p-4 transition-all hover:shadow-md dark:border-gray-700 dark:bg-gray-800"
               >
                 <Link
-                  href={`/?project=${project.id}`}
+                  href={`/dashboard?project=${project.id}`}
                   className="block"
                 >
                   <h3 className="font-medium text-gray-800 dark:text-gray-100">
@@ -177,7 +184,7 @@ export default function ProjectsPage() {
                 </Link>
                 <div className="mt-3 flex items-center justify-between">
                   <Link
-                    href={`/?project=${project.id}`}
+                    href={`/dashboard?project=${project.id}`}
                     className="text-xs font-medium text-blue-600 hover:underline"
                   >
                     Open →

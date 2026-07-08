@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { Redis } from '@upstash/redis';
+import { NextRequest, NextResponse } from "next/server";
+import { Redis } from "@upstash/redis";
+import { createServerSupabaseClient } from "../../../lib/supabase-server";
 
 interface PluginRegistration {
   name: string;
@@ -16,10 +17,21 @@ function getRedis(): Redis | null {
 }
 
 export async function POST(req: NextRequest) {
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const redis = getRedis();
   if (!redis) {
     return NextResponse.json(
-      { error: 'UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are required' },
+      {
+        error:
+          "UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are required",
+      },
       { status: 500 },
     );
   }
@@ -29,7 +41,7 @@ export async function POST(req: NextRequest) {
 
     if (!body.name || !body.entry) {
       return NextResponse.json(
-        { error: 'name and entry are required' },
+        { error: "name and entry are required" },
         { status: 400 },
       );
     }
@@ -37,7 +49,7 @@ export async function POST(req: NextRequest) {
     const pluginKey = `plugin:${body.name}`;
     const pluginData = JSON.stringify({
       name: body.name,
-      version: body.version ?? '1.0.0',
+      version: body.version ?? "1.0.0",
       entry: body.entry,
       config: body.config ?? {},
       registeredAt: new Date().toISOString(),
@@ -51,23 +63,34 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     return NextResponse.json(
-      { error: 'Failed to register plugin', details: String(err) },
+      { error: "Failed to register plugin", details: String(err) },
       { status: 500 },
     );
   }
 }
 
 export async function GET() {
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const redis = getRedis();
   if (!redis) {
     return NextResponse.json(
-      { error: 'UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are required' },
+      {
+        error:
+          "UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are required",
+      },
       { status: 500 },
     );
   }
 
   try {
-    const scanResult = await redis.scan(0, { match: 'plugin:*', count: 100 });
+    const scanResult = await redis.scan(0, { match: "plugin:*", count: 100 });
     const keys = scanResult[1] as string[];
 
     const plugins: Array<Record<string, unknown>> = [];
@@ -81,26 +104,40 @@ export async function GET() {
     return NextResponse.json({ plugins });
   } catch (err) {
     return NextResponse.json(
-      { error: 'Failed to list plugins', details: String(err) },
+      { error: "Failed to list plugins", details: String(err) },
       { status: 500 },
     );
   }
 }
 
 export async function DELETE(req: NextRequest) {
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const redis = getRedis();
   if (!redis) {
     return NextResponse.json(
-      { error: 'UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are required' },
+      {
+        error:
+          "UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are required",
+      },
       { status: 500 },
     );
   }
 
   const { searchParams } = new URL(req.url);
-  const name = searchParams.get('name');
+  const name = searchParams.get("name");
 
   if (!name) {
-    return NextResponse.json({ error: 'name query parameter is required' }, { status: 400 });
+    return NextResponse.json(
+      { error: "name query parameter is required" },
+      { status: 400 },
+    );
   }
 
   try {
@@ -108,7 +145,7 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ success: true, deleted: name });
   } catch (err) {
     return NextResponse.json(
-      { error: 'Failed to delete plugin', details: String(err) },
+      { error: "Failed to delete plugin", details: String(err) },
       { status: 500 },
     );
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useGraphStore } from "../../../store/graphStore";
 import { useDeployStore } from "../../../store/deployStore";
 import { useCloudDeploy } from "../../../hooks/useCloudDeploy";
@@ -28,18 +28,33 @@ const STEP_LABELS: Record<DeployStep, string> = {
   failed: "Deployment Failed",
 };
 
-export function DeployButton({ onViewLogs }: { onViewLogs?: () => void }) {
+export function DeployButton({
+  onViewLogs,
+  onDeployStart,
+}: {
+  onViewLogs?: (deployId: string | null) => void;
+  onDeployStart?: (deployId: string) => void;
+}) {
   const [showModal, setShowModal] = useState(false);
   const [projectName, setProjectName] = useState("my-project");
   const isValid = useGraphStore((s) => s.isValid);
   const nodeCount = useGraphStore((s) => s.nodes.length);
   const cloudConfig = useDeployStore((s) => s.cloudConfig);
-  const { deploy, isDeploying, progress, result } = useCloudDeploy();
+  const { deploy, isDeploying, progress, result, deployId } = useCloudDeploy();
 
   const handleDeploy = async () => {
     setShowModal(true);
-    await deploy(projectName);
+    const res = await deploy(projectName);
+    if (res.success && deployId) {
+      onDeployStart?.(deployId);
+    }
   };
+
+  useEffect(() => {
+    if (deployId && isDeploying) {
+      onDeployStart?.(deployId);
+    }
+  }, [deployId, isDeploying, onDeployStart]);
 
   const step = progress?.step ?? "idle";
   const percentage = progress?.percentage ?? 0;
@@ -60,7 +75,7 @@ export function DeployButton({ onViewLogs }: { onViewLogs?: () => void }) {
       </button>
       {onViewLogs && (
         <button
-          onClick={onViewLogs}
+          onClick={() => onViewLogs?.(deployId)}
           disabled={!isValid || nodeCount === 0}
           className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-2.5 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
           title="View deploy logs"
@@ -215,7 +230,9 @@ function DeployLink({ label, url }: { label: string; url: string }) {
       rel="noopener noreferrer"
       className="flex items-center justify-between rounded-md border border-gray-200 px-4 py-2.5 text-sm transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
     >
-      <span className="font-medium text-gray-700 dark:text-gray-200">{label}</span>
+      <span className="font-medium text-gray-700 dark:text-gray-200">
+        {label}
+      </span>
       <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
         <span className="truncate">{url}</span>
         <ExternalLink size={14} />
