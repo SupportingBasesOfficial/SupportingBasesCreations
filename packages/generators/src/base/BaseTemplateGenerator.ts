@@ -4,6 +4,7 @@ import { fileURLToPath } from "url";
 import { FeatureFlag, ArchitectureType } from "@sbc/core";
 import type { Generator, GenerationContext } from "@sbc/core";
 import type { GeneratedArtifact } from "@sbc/shared";
+import { packedTemplates } from "./packed-templates.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -102,13 +103,28 @@ export class BaseTemplateGenerator implements Generator {
       year: new Date().getFullYear().toString(),
     };
 
-    if (!fs.existsSync(TEMPLATE_DIR)) {
-      throw new Error(
-        `Base template not found at ${TEMPLATE_DIR}. Ensure the git submodule is initialized: git submodule update --init`,
-      );
+    if (fs.existsSync(TEMPLATE_DIR)) {
+      walkDir(TEMPLATE_DIR, TEMPLATE_DIR, artifacts, replacements);
+    } else {
+      for (const file of packedTemplates) {
+        let content = file.content;
+        for (const [key, value] of Object.entries(replacements)) {
+          content = content.replace(
+            new RegExp(`\\{\\{${key}\\}\\}`, "g"),
+            value,
+          );
+        }
+        artifacts.push({
+          path: file.path,
+          content,
+          language: getLanguage(file.path),
+          metadata: {
+            generator: "base-template",
+            source: "packed-templates",
+          },
+        });
+      }
     }
-
-    walkDir(TEMPLATE_DIR, TEMPLATE_DIR, artifacts, replacements);
 
     return artifacts;
   }
