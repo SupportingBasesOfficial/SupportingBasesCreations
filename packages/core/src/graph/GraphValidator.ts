@@ -31,6 +31,7 @@ const CONNECTION_RULES: Record<NodeType, NodeType[]> = {
     NodeType.CLOUD_DATABASE,
     NodeType.CACHE_LAYER,
     NodeType.API_ROUTE,
+    NodeType.FRONTEND_COMPONENT,
   ],
   [NodeType.CACHE_LAYER]: [NodeType.CLOUD_DATABASE, NodeType.API_ROUTE],
   [NodeType.QUEUE_SERVICE]: [NodeType.WEBHOOK_HANDLER, NodeType.API_ROUTE],
