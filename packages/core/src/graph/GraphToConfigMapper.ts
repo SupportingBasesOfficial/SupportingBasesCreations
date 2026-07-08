@@ -14,6 +14,11 @@ function toCamelCase(input: string): string {
     .replace(/[^a-zA-Z0-9]/g, "");
 }
 
+function toPascalCase(input: string): string {
+  const camel = toCamelCase(input);
+  return camel.charAt(0).toUpperCase() + camel.slice(1);
+}
+
 export class GraphToConfigMapper {
   private graph: ArchitectureGraph;
   private projectName: string;
@@ -69,7 +74,7 @@ export class GraphToConfigMapper {
     node: GraphNode,
   ): NonNullable<ProjectConfig["entities"]>[0] {
     return {
-      name: toCamelCase(node.data.label),
+      name: toPascalCase(node.data.label),
       fields: (node.data.fields ?? []).map((f) => ({
         name: f.name,
         type: f.type,
@@ -78,7 +83,8 @@ export class GraphToConfigMapper {
         nullable: f.nullable ?? false,
       })),
       features: node.data.features ?? [],
-      tableName: node.data.tableName ?? toCamelCase(node.data.label),
+      tableName:
+        node.data.tableName ?? toPascalCase(node.data.label).toLowerCase(),
     };
   }
 
@@ -90,7 +96,7 @@ export class GraphToConfigMapper {
       .filter((e) => e.source === node.id)
       .map((e) => this.graph.nodes.find((n) => n.id === e.target))
       .filter((n) => n?.type === NodeType.CLOUD_DATABASE)
-      .map((n) => toCamelCase(n!.data.label));
+      .map((n) => toPascalCase(n!.data.label));
 
     return {
       name: toCamelCase(node.data.label),
