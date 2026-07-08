@@ -52,7 +52,7 @@ export function CanvasContextMenu() {
     const node = nodes.find((n) => n.id === menu.nodeId);
     if (node) {
       clipboardRef.current = { node };
-      toast.info("Node copied to clipboard");
+      toast.info("Bloco copiado");
     }
     setMenu(null);
   }, [menu, nodes, toast]);
@@ -70,14 +70,14 @@ export function CanvasContextMenu() {
       data: { ...node.data, label: `${node.data.label} (paste)` },
     };
     addNode(clone);
-    toast.info("Node pasted");
+    toast.info("Bloco colado");
     setMenu(null);
   }, [addNode, toast]);
 
   const handleDelete = useCallback(() => {
     if (!menu?.nodeId) return;
     removeNode(menu.nodeId);
-    toast.info("Node deleted");
+    toast.info("Bloco excluído");
     setMenu(null);
   }, [menu, removeNode, toast]);
 
@@ -95,7 +95,7 @@ export function CanvasContextMenu() {
         data: { ...node.data, label: `${node.data.label} (copy)` },
       };
       addNode(clone);
-      toast.info("Node duplicated");
+      toast.info("Bloco duplicado");
     }
     setMenu(null);
   }, [menu, nodes, addNode, toast]);
@@ -120,29 +120,29 @@ export function CanvasContextMenu() {
         <>
           <MenuItem
             icon={<Edit3 size={14} />}
-            label="Select"
+            label="Selecionar"
             onClick={handleSelect}
           />
           <MenuItem
             icon={<Copy size={14} />}
-            label="Copy"
+            label="Copiar"
             onClick={handleCopy}
           />
           <MenuItem
             icon={<ClipboardPaste size={14} />}
-            label="Paste"
+            label="Colar"
             onClick={handlePaste}
             disabled={!clipboardRef.current}
           />
           <MenuItem
             icon={<Scissors size={14} />}
-            label="Duplicate"
+            label="Duplicar"
             onClick={handleDuplicate}
           />
           <div className="my-1 border-t border-gray-200 dark:border-gray-700" />
           <MenuItem
             icon={<Trash2 size={14} />}
-            label="Delete"
+            label="Excluir"
             onClick={handleDelete}
             danger
           />
@@ -151,7 +151,7 @@ export function CanvasContextMenu() {
       {!hasNode && (
         <MenuItem
           icon={<ClipboardPaste size={14} />}
-          label="Paste"
+          label="Colar"
           onClick={handlePaste}
           disabled={!clipboardRef.current}
         />

@@ -53,7 +53,7 @@ export function CodePreview() {
       const data = await res.json();
 
       if (!res.ok) {
-        toast.error(data.error ?? "Code preview failed");
+        toast.error(data.error ?? "Falha ao gerar preview");
         return;
       }
 
@@ -63,7 +63,7 @@ export function CodePreview() {
       );
       if (firstFile) setSelectedFile(firstFile);
     } catch {
-      toast.error("Failed to generate code preview");
+      toast.error("Não foi possível gerar o preview");
     } finally {
       setLoading(false);
     }
@@ -100,7 +100,9 @@ export function CodePreview() {
               )}
               {node.name}
             </button>
-            {isExpanded && node.children && renderTree(node.children, depth + 1)}
+            {isExpanded &&
+              node.children &&
+              renderTree(node.children, depth + 1)}
           </div>
         );
       }
@@ -132,14 +134,14 @@ export function CodePreview() {
         onClick={handlePreview}
         disabled={!isValid || nodeCount === 0 || loading}
         className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-        title="Preview generated code"
+        title="Ver código gerado"
       >
         {loading ? (
           <Loader2 size={16} className="animate-spin" />
         ) : (
           <Code2 size={16} />
         )}
-        <span className="hidden sm:inline">Code Preview</span>
+        <span className="hidden sm:inline">Ver Código</span>
       </button>
 
       {open && (
@@ -155,11 +157,11 @@ export function CodePreview() {
               <div className="flex items-center gap-2">
                 <Eye size={20} className="text-blue-600" />
                 <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-                  Live Code Preview
+                  Código Gerado
                 </h2>
                 {preview && (
                   <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500 dark:bg-gray-800 dark:text-gray-400">
-                    {preview.totalFiles} files · {preview.totalLines} lines
+                    {preview.totalFiles} arquivos · {preview.totalLines} linhas
                   </span>
                 )}
               </div>
@@ -181,7 +183,9 @@ export function CodePreview() {
                 ) : preview ? (
                   renderTree(preview.fileTree)
                 ) : (
-                  <p className="px-3 py-4 text-xs text-gray-400">No files generated</p>
+                  <p className="px-3 py-4 text-xs text-gray-400">
+                    Nenhum arquivo gerado
+                  </p>
                 )}
               </div>
 
@@ -198,7 +202,7 @@ export function CodePreview() {
                   </pre>
                 ) : (
                   <div className="flex h-full items-center justify-center text-sm text-gray-500">
-                    Select a file to preview
+                    Selecione um arquivo para visualizar
                   </div>
                 )}
               </div>
@@ -206,7 +210,8 @@ export function CodePreview() {
 
             {selectedFile && (
               <div className="border-t border-gray-200 px-4 py-2 text-xs text-gray-500 dark:border-gray-800 dark:text-gray-400">
-                {selectedFile.path} · {selectedFile.content.split("\n").length} lines
+                {selectedFile.path} · {selectedFile.content.split("\n").length}{" "}
+                linhas
               </div>
             )}
           </div>

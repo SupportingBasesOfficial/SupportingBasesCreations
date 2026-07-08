@@ -29,10 +29,10 @@ export function NodePaletteSidebar() {
     <div className="flex h-full w-56 flex-col border-r border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
       <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-800">
         <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-          Components
+          Blocos
         </h3>
         <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
-          Drag to canvas
+          Arraste para o canvas
         </p>
       </div>
       <div className="border-b border-gray-200 p-3 dark:border-gray-800">
@@ -45,7 +45,7 @@ export function NodePaletteSidebar() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search components..."
+            placeholder="Buscar blocos..."
             className="w-full rounded-md border border-gray-200 bg-gray-50 py-1.5 pl-8 pr-3 text-sm text-gray-700 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:placeholder-gray-500"
           />
         </div>
@@ -53,7 +53,7 @@ export function NodePaletteSidebar() {
       <div className="flex-1 overflow-y-auto p-3">
         {filtered.length === 0 ? (
           <p className="py-4 text-center text-xs text-gray-400 dark:text-gray-500">
-            No components found
+            Nenhum bloco encontrado
           </p>
         ) : (
           <div className="space-y-2">

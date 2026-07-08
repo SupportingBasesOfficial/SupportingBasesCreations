@@ -171,7 +171,7 @@ export function CloudSettingsModal({
           <div className="flex items-center gap-2">
             <Cloud size={20} className="text-blue-600" />
             <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-              Cloud Configuration
+              Configuração de Nuvem
             </h2>
           </div>
           <button
@@ -211,7 +211,7 @@ export function CloudSettingsModal({
                   {state.connected ? (
                     <span className="flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-600">
                       <Check size={12} />
-                      Connected
+                      Conectado
                     </span>
                   ) : (
                     <button
@@ -232,7 +232,7 @@ export function CloudSettingsModal({
                 <div className="space-y-2">
                   <div>
                     <label className="mb-0.5 block text-xs text-gray-500 dark:text-gray-400">
-                      Access Token
+                      Token de Acesso
                     </label>
                     <input
                       type="password"
@@ -247,17 +247,17 @@ export function CloudSettingsModal({
                           },
                         }))
                       }
-                      placeholder={`Paste ${meta.label} token`}
+                      placeholder={`Cole o token do ${meta.label}`}
                       className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                     />
                   </div>
                   <div>
                     <label className="mb-0.5 block text-xs text-gray-500 dark:text-gray-400">
                       {provider === "github"
-                        ? "Owner / Username"
+                        ? "Usuário / Dono"
                         : provider === "vercel"
-                          ? "Team ID (optional)"
-                          : "Organization ID"}
+                          ? "ID do Time (opcional)"
+                          : "ID da Organização"}
                     </label>
                     <input
                       type="text"
@@ -288,7 +288,7 @@ export function CloudSettingsModal({
                     onClick={() => handleDisconnect(provider)}
                     className="mt-2 text-xs text-red-500 hover:underline"
                   >
-                    Disconnect
+                    Desconectar
                   </button>
                 )}
               </div>
@@ -297,8 +297,9 @@ export function CloudSettingsModal({
 
           <div className="rounded-md bg-blue-50 px-4 py-2 text-xs text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
             <ExternalLink size={12} className="mr-1 inline" />
-            Tokens are stored locally in your browser and encrypted in memory.
-            Never sent to any server except the provider API.
+            Tokens são armazenados localmente no seu navegador e criptografados
+            em memória. Nunca enviados para nenhum servidor exceto a API do
+            provedor.
           </div>
 
           <button
@@ -306,7 +307,7 @@ export function CloudSettingsModal({
             disabled={saving}
             className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
-            {saving ? "Saving..." : "Save Configuration"}
+            {saving ? "Salvando..." : "Salvar Configuração"}
           </button>
         </div>
       </div>

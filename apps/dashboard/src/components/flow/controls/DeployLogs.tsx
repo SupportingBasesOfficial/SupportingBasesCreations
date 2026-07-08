@@ -41,14 +41,14 @@ export function DeployLogs({ deployId, open, onClose }: DeployLogsProps) {
     setStatus("streaming");
     setConnected(false);
 
-    addLog(`Connecting to deploy ${deployId}...`, "info");
+    addLog(`Conectando ao deploy ${deployId}...`, "info");
 
     const es = new EventSource(`/api/deploy-logs?deployId=${deployId}`);
     eventSourceRef.current = es;
 
     es.onopen = () => {
       setConnected(true);
-      addLog("Connected to log stream", "success");
+      addLog("Conectado ao stream de logs", "success");
     };
 
     es.onmessage = (event) => {
@@ -62,9 +62,9 @@ export function DeployLogs({ deployId, open, onClose }: DeployLogsProps) {
         if (data.done) {
           setStatus(data.status === "complete" ? "complete" : "failed");
           if (data.status === "complete") {
-            addLog("Deployment completed successfully!", "success");
+            addLog("Deploy concluído com sucesso!", "success");
           } else {
-            addLog("Deployment failed", "error");
+            addLog("Deploy falhou", "error");
           }
           es.close();
           return;
@@ -113,7 +113,7 @@ export function DeployLogs({ deployId, open, onClose }: DeployLogsProps) {
 
     es.onerror = () => {
       setConnected(false);
-      addLog("Connection to log stream lost", "error");
+      addLog("Conexão com o stream de logs perdida", "error");
       es.close();
     };
 
@@ -148,7 +148,9 @@ export function DeployLogs({ deployId, open, onClose }: DeployLogsProps) {
         <div className="flex items-center justify-between border-b border-gray-800 px-4 py-3">
           <div className="flex items-center gap-2">
             <Terminal size={20} className="text-green-500" />
-            <h2 className="text-lg font-semibold text-gray-100">Deploy Logs</h2>
+            <h2 className="text-lg font-semibold text-gray-100">
+              Logs de Deploy
+            </h2>
             <div className="flex items-center gap-1.5">
               {status === "streaming" && connected ? (
                 <Loader2 size={12} className="animate-spin text-blue-400" />
@@ -160,9 +162,11 @@ export function DeployLogs({ deployId, open, onClose }: DeployLogsProps) {
               <span className="text-xs text-gray-400">
                 {status === "streaming"
                   ? connected
-                    ? "Live"
-                    : "Connecting..."
-                  : status}
+                    ? "Ao vivo"
+                    : "Conectando..."
+                  : status === "complete"
+                    ? "Concluído"
+                    : "Falhou"}
               </span>
             </div>
           </div>
@@ -177,7 +181,7 @@ export function DeployLogs({ deployId, open, onClose }: DeployLogsProps) {
         <div className="flex-1 overflow-y-auto p-4 font-mono text-xs">
           {logs.length === 0 ? (
             <div className="flex h-full items-center justify-center text-gray-500">
-              Waiting for logs...
+              Aguardando logs...
             </div>
           ) : (
             logs.map((log, i) => (
@@ -191,7 +195,7 @@ export function DeployLogs({ deployId, open, onClose }: DeployLogsProps) {
         </div>
 
         <div className="border-t border-gray-800 px-4 py-2 text-xs text-gray-500">
-          {logs.length} log entries
+          {logs.length} entradas de log
         </div>
       </div>
     </div>

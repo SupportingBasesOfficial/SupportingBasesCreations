@@ -7,10 +7,10 @@ import type { GraphNode, GraphEdge } from "@sbc/shared";
 import { useToast } from "../../Toast";
 
 const EXAMPLES = [
-  "Build a SaaS app with user authentication, a PostgreSQL database, and Stripe billing",
-  "Create a real-time chat app with WebSocket support and Redis caching",
-  "Design an e-commerce platform with CDN, product catalog, and order queue",
-  "Build a multi-tenant SaaS with auth, audit logging, and background jobs",
+  "Um app de SaaS com login de usuários, banco de dados e cobrança via Stripe",
+  "Um chat em tempo real com WebSocket e cache Redis",
+  "Uma loja online com catálogo de produtos, CDN e fila de pedidos",
+  "Um app de tarefas com projetos, equipes e login",
 ];
 
 export function AICopilot() {
@@ -43,7 +43,7 @@ export function AICopilot() {
       const data = await res.json();
 
       if (!res.ok) {
-        toast.error(data.error ?? "AI generation failed");
+        toast.error(data.error ?? "Falha na geração pela IA");
         return;
       }
 
@@ -65,16 +65,16 @@ export function AICopilot() {
             },
           });
         });
-        toast.success(`Added ${aiNodes.length} nodes from AI`);
+        toast.success(`${aiNodes.length} blocos adicionados pela IA`);
       } else {
         loadGraph({ nodes: aiNodes, edges: aiEdges });
-        toast.success("Architecture generated from AI");
+        toast.success("Arquitetura gerada pela IA");
       }
 
       setOpen(false);
       setPrompt("");
     } catch {
-      toast.error("Failed to connect to AI service");
+      toast.error("Não foi possível conectar à IA");
     } finally {
       setLoading(false);
     }
@@ -95,7 +95,7 @@ export function AICopilot() {
         title="AI Architecture Copilot"
       >
         <Wand2 size={16} />
-        <span className="hidden sm:inline">AI Copilot</span>
+        <span className="hidden sm:inline">IA Copiloto</span>
       </button>
 
       {open && (
@@ -111,7 +111,7 @@ export function AICopilot() {
               <div className="flex items-center gap-2">
                 <Sparkles size={20} className="text-purple-600" />
                 <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-                  AI Architecture Copilot
+                  IA Copiloto de Arquitetura
                 </h2>
               </div>
               <button
@@ -124,7 +124,8 @@ export function AICopilot() {
             </div>
 
             <p className="mb-3 text-sm text-gray-500 dark:text-gray-400">
-              Describe your project in natural language and AI will build the architecture graph for you.
+              Descreva seu projeto em linguagem natural e a IA vai montar a
+              arquitetura completa para você.
             </p>
 
             <div className="mb-3 flex flex-wrap gap-2">
@@ -145,7 +146,7 @@ export function AICopilot() {
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="e.g. Build a SaaS app with auth, database, and Stripe billing..."
+              placeholder="Ex: Um app de delivery com restaurantes, pedidos e entregadores..."
               rows={3}
               disabled={loading}
               className="mb-3 w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-600"
@@ -159,18 +160,18 @@ export function AICopilot() {
               {loading ? (
                 <>
                   <Loader2 size={16} className="animate-spin" />
-                  Generating Architecture...
+                  Gerando arquitetura...
                 </>
               ) : (
                 <>
                   <Send size={16} />
-                  Generate Architecture
+                  Gerar Arquitetura
                 </>
               )}
             </button>
 
             <p className="mt-2 text-center text-xs text-gray-400 dark:text-gray-500">
-              Press Cmd/Ctrl + Enter to generate
+              Pressione Ctrl + Enter para gerar
             </p>
           </div>
         </div>

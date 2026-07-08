@@ -16,7 +16,7 @@ export function ExportZipButton() {
     try {
       const graph = getGraph();
       if (graph.nodes.length === 0) {
-        toast.error("No nodes to export");
+        toast.error("Nenhum bloco para exportar");
         return;
       }
 
@@ -33,9 +33,9 @@ export function ExportZipButton() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      toast.success("Project config exported");
+      toast.success("Configuração do projeto exportada");
     } catch {
-      toast.error("Failed to export project");
+      toast.error("Falha ao exportar projeto");
     } finally {
       setExporting(false);
     }
@@ -52,7 +52,7 @@ export function ExportZipButton() {
       ) : (
         <Download size={16} />
       )}
-      Export JSON
+      Exportar JSON
     </button>
   );
 }

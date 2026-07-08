@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, type DragEvent } from "react";
+import { useCallback, useEffect, type DragEvent } from "react";
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -21,6 +21,8 @@ import { CustomNode, type CustomNodeData } from "./nodes/CustomNode";
 import { NODE_PALETTE, getNodeConfig } from "./nodes/NodePalette";
 import { NodeType, type GraphNode, type GraphEdge } from "@sbc/shared";
 import { nanoid } from "nanoid";
+import { useToast } from "../../components/Toast";
+import { Sparkles, LayoutTemplate } from "lucide-react";
 
 const nodeTypes = { custom: CustomNode };
 
@@ -34,7 +36,10 @@ function ArchitectureCanvasInner() {
   const removeEdge = useGraphStore((s) => s.removeEdge);
   const setSelectedNode = useGraphStore((s) => s.setSelectedNode);
   const selectedNodeId = useGraphStore((s) => s.selectedNodeId);
+  const undo = useGraphStore((s) => s.undo);
+  const redo = useGraphStore((s) => s.redo);
   const { getErrorForNode, getErrorForEdge } = useGraphValidation();
+  const toast = useToast();
 
   const rfNodes: Node[] = nodes.map((n) => {
     const config = getNodeConfig(n.type);
@@ -51,6 +56,10 @@ function ArchitectureCanvasInner() {
         icon: config.icon,
         hasError: !!error,
         errorMessage: error?.message,
+        fields: n.data.fields,
+        route: n.data.route,
+        method: n.data.method,
+        framework: n.data.framework,
       } as CustomNodeData,
       selected: n.id === selectedNodeId,
     };
@@ -77,9 +86,12 @@ function ArchitectureCanvasInner() {
         source: connection.source,
         target: connection.target,
       };
-      addEdgeStore(edge);
+      const success = addEdgeStore(edge);
+      if (!success) {
+        toast.error("Conexão inválida — esses blocos não podem se conectar");
+      }
     },
-    [addEdgeStore],
+    [addEdgeStore, toast],
   );
 
   const onNodeDragStop = useCallback(
@@ -155,8 +167,45 @@ function ArchitectureCanvasInner() {
     [addNode, nodes.length],
   );
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      } else if (
+        (e.metaKey || e.ctrlKey) &&
+        (e.key === "y" || (e.key === "z" && e.shiftKey))
+      ) {
+        e.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [undo, redo]);
+
   return (
-    <div className="h-full w-full" onDrop={onDrop} onDragOver={onDragOver}>
+    <div
+      className="relative h-full w-full"
+      onDrop={onDrop}
+      onDragOver={onDragOver}
+    >
+      {nodes.length === 0 && (
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+          <div className="pointer-events-auto text-center">
+            <div className="mb-3 flex justify-center gap-3">
+              <Sparkles size={40} className="text-purple-400" />
+              <LayoutTemplate size={40} className="text-blue-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-400 dark:text-gray-500">
+              Comece sua arquitetura
+            </h3>
+            <p className="mt-1 text-sm text-gray-400 dark:text-gray-600">
+              Arraste blocos da esquerda, use a IA ou escolha um template
+            </p>
+          </div>
+        </div>
+      )}
       <ReactFlow
         nodes={rfNodes}
         edges={rfEdges}
@@ -177,7 +226,7 @@ function ArchitectureCanvasInner() {
         }}
         connectionMode={ConnectionMode.Loose}
         fitView
-        className="bg-gray-50"
+        className="bg-gray-50 dark:bg-gray-950"
       >
         <Background
           variant={BackgroundVariant.Dots}
@@ -185,9 +234,9 @@ function ArchitectureCanvasInner() {
           size={1}
           color="#e2e8f0"
         />
-        <Controls className="!bg-white !shadow-md !rounded-lg !border !border-gray-200" />
+        <Controls className="!bg-white !shadow-md !rounded-lg !border !border-gray-200 dark:!bg-gray-800 dark:!border-gray-700 dark:!text-gray-300" />
         <MiniMap
-          className="!bg-white !shadow-md !rounded-lg !border !border-gray-200"
+          className="!bg-white !shadow-md !rounded-lg !border !border-gray-200 dark:!bg-gray-800 dark:!border-gray-700"
           nodeColor={(node) => {
             const data = node.data as CustomNodeData;
             return data?.color ?? "#94a3b8";

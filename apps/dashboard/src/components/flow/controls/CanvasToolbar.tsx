@@ -49,20 +49,20 @@ export function CanvasToolbar() {
   };
 
   return (
-    <div className="absolute left-3 top-3 z-10 flex items-center gap-1 rounded-lg border border-gray-200 bg-white p-1 shadow-sm">
+    <div className="absolute left-3 top-3 z-10 flex items-center gap-1 rounded-lg border border-gray-200 bg-white p-1 shadow-sm dark:border-gray-700 dark:bg-gray-900">
       <button
         onClick={undo}
         disabled={!canUndo}
-        title="Undo (Ctrl+Z)"
-        className="rounded p-1.5 text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30"
+        title="Desfazer (Ctrl+Z)"
+        className="rounded p-1.5 text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30 dark:text-gray-300 dark:hover:bg-gray-800"
       >
         <Undo2 size={16} />
       </button>
       <button
         onClick={redo}
         disabled={!canRedo}
-        title="Redo (Ctrl+Y)"
-        className="rounded p-1.5 text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30"
+        title="Refazer (Ctrl+Y)"
+        className="rounded p-1.5 text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30 dark:text-gray-300 dark:hover:bg-gray-800"
       >
         <Redo2 size={16} />
       </button>
@@ -72,15 +72,15 @@ export function CanvasToolbar() {
       <button
         onClick={handleSave}
         disabled={nodeCount === 0}
-        title="Save to browser"
-        className="rounded p-1.5 text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30"
+        title="Salvar no navegador"
+        className="rounded p-1.5 text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30 dark:text-gray-300 dark:hover:bg-gray-800"
       >
         <Save size={16} />
       </button>
       <button
         onClick={handleLoad}
-        title="Load from browser"
-        className="rounded p-1.5 text-gray-600 hover:bg-gray-100"
+        title="Carregar do navegador"
+        className="rounded p-1.5 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
       >
         <FolderOpen size={16} />
       </button>
@@ -90,15 +90,15 @@ export function CanvasToolbar() {
       <button
         onClick={handleExport}
         disabled={nodeCount === 0}
-        title="Export as JSON"
-        className="rounded p-1.5 text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30"
+        title="Exportar como JSON"
+        className="rounded p-1.5 text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30 dark:text-gray-300 dark:hover:bg-gray-800"
       >
         <Download size={16} />
       </button>
       <button
         onClick={handleImport}
-        title="Import JSON"
-        className="rounded p-1.5 text-gray-600 hover:bg-gray-100"
+        title="Importar JSON"
+        className="rounded p-1.5 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
       >
         <Upload size={16} />
       </button>
