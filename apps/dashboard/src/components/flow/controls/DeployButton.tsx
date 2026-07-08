@@ -16,16 +16,16 @@ import {
 import type { DeployStep } from "@sbc/shared";
 
 const STEP_LABELS: Record<DeployStep, string> = {
-  idle: "Idle",
-  generating: "Generating Artifacts",
-  "creating-repo": "Creating GitHub Repository",
-  "pushing-files": "Pushing Files to GitHub",
-  "linking-vercel": "Linking to Vercel",
-  "deploying-vercel": "Deploying to Vercel",
-  "provisioning-supabase": "Provisioning Supabase Database",
-  "configuring-env": "Configuring Environment Variables",
-  complete: "Deployment Complete",
-  failed: "Deployment Failed",
+  idle: "Aguardando",
+  generating: "Gerando arquivos do projeto",
+  "creating-repo": "Criando repositório no GitHub",
+  "pushing-files": "Enviando arquivos para o GitHub",
+  "linking-vercel": "Conectando com a Vercel",
+  "deploying-vercel": "Publicando na Vercel",
+  "provisioning-supabase": "Configurando banco de dados Supabase",
+  "configuring-env": "Configurando variáveis de ambiente",
+  complete: "Deploy concluído!",
+  failed: "Deploy falhou",
 };
 
 export function DeployButton({
@@ -71,7 +71,7 @@ export function DeployButton({
         ) : (
           <Rocket size={16} />
         )}
-        Deploy to Cloud
+        Publicar na Nuvem
       </button>
       {onViewLogs && (
         <button
@@ -89,7 +89,7 @@ export function DeployButton({
           <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl dark:bg-gray-900">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-                Cloud Deployment
+                Publicar Projeto
               </h2>
               <button
                 onClick={() => !isDeploying && setShowModal(false)}
@@ -104,7 +104,7 @@ export function DeployButton({
               <div className="space-y-4">
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-300">
-                    Project Name
+                    Nome do projeto
                   </label>
                   <input
                     type="text"
@@ -116,8 +116,8 @@ export function DeployButton({
                 {!cloudConfig && (
                   <div className="flex items-center gap-2 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
                     <AlertCircle size={16} />
-                    Cloud tokens not configured. Set GitHub, Vercel, and
-                    Supabase tokens first.
+                    Tokens de nuvem não configurados. Conecte GitHub, Vercel e
+                    Supabase primeiro nas configurações.
                   </div>
                 )}
                 <button
@@ -125,7 +125,7 @@ export function DeployButton({
                   disabled={!cloudConfig}
                   className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
                 >
-                  Start Deployment
+                  Iniciar Publicação
                 </button>
               </div>
             )}
@@ -186,7 +186,7 @@ export function DeployButton({
                     <div className="flex items-center gap-2 rounded-md bg-green-50 px-4 py-3 text-sm text-green-700 dark:bg-green-900/30 dark:text-green-400">
                       <CheckCircle2 size={20} />
                       <span className="font-medium">
-                        Deployment Successful!
+                        Projeto publicado com sucesso!
                       </span>
                     </div>
                     <div className="space-y-2">
@@ -211,8 +211,21 @@ export function DeployButton({
                   onClick={() => setShowModal(false)}
                   className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
                 >
-                  Close
+                  Fechar
                 </button>
+                {result.success && (
+                  <button
+                    onClick={() => {
+                      handleDeploy();
+                    }}
+                    className="w-full rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition-all hover:from-blue-700 hover:to-indigo-700"
+                  >
+                    <span className="flex items-center justify-center gap-2">
+                      <Rocket size={16} />
+                      Deploy Novamente
+                    </span>
+                  </button>
+                )}
               </div>
             )}
           </div>

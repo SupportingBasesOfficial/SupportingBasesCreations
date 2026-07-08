@@ -3,7 +3,7 @@
 import { useGraphStore } from "../../../store/graphStore";
 import { getNodeConfig } from "../nodes/NodePalette";
 import { NodeType } from "@sbc/shared";
-import { Trash2, X, Plus } from "lucide-react";
+import { Trash2, X, Plus, Info } from "lucide-react";
 
 interface FieldDef {
   name: string;
@@ -13,17 +13,21 @@ interface FieldDef {
   nullable: boolean;
 }
 
-const FIELD_TYPES = [
-  "string",
-  "text",
-  "uuid",
-  "integer",
-  "bigint",
-  "float",
-  "boolean",
-  "timestamp",
-  "date",
-  "jsonb",
+const FIELD_TYPES: { value: string; label: string; hint: string }[] = [
+  { value: "string", label: "Texto curto", hint: "Nomes, títulos, emails" },
+  { value: "text", label: "Texto longo", hint: "Descrições, conteúdo" },
+  { value: "uuid", label: "ID único", hint: "Identificador automático" },
+  {
+    value: "integer",
+    label: "Número inteiro",
+    hint: "Quantidades, contadores",
+  },
+  { value: "bigint", label: "Número grande", hint: "IDs numéricos grandes" },
+  { value: "float", label: "Decimal", hint: "Preços, notas, medidas" },
+  { value: "boolean", label: "Sim/Não", hint: "Verdadeiro ou falso" },
+  { value: "timestamp", label: "Data e hora", hint: "Quando algo aconteceu" },
+  { value: "date", label: "Data", hint: "Apenas a data" },
+  { value: "jsonb", label: "Dados flexíveis", hint: "JSON estruturado" },
 ];
 
 export function NodeInspector() {
@@ -40,13 +44,19 @@ export function NodeInspector() {
       <div className="flex h-full w-72 flex-col border-l border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
         <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-800">
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-            Inspector
+            Propriedades
           </h3>
         </div>
         <div className="flex flex-1 items-center justify-center p-4">
-          <p className="text-center text-sm text-gray-400 dark:text-gray-500">
-            Select a node to edit its properties
-          </p>
+          <div className="text-center">
+            <Info
+              size={32}
+              className="mx-auto mb-2 text-gray-300 dark:text-gray-700"
+            />
+            <p className="text-center text-sm text-gray-400 dark:text-gray-500">
+              Clique em um bloco do diagrama para configurá-lo
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -78,7 +88,7 @@ export function NodeInspector() {
         <div className="space-y-4">
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-              Label
+              Nome
             </label>
             <input
               type="text"
@@ -90,7 +100,7 @@ export function NodeInspector() {
 
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-              Description
+              O que faz?
             </label>
             <textarea
               value={node.data.description ?? ""}
@@ -106,7 +116,7 @@ export function NodeInspector() {
             <>
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-                  Table Name
+                  Nome da tabela
                 </label>
                 <input
                   type="text"
@@ -121,7 +131,7 @@ export function NodeInspector() {
               <div>
                 <div className="mb-2 flex items-center justify-between">
                   <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">
-                    Fields
+                    Que informações serão armazenadas?
                   </label>
                   <button
                     onClick={() => {
@@ -141,7 +151,7 @@ export function NodeInspector() {
                     className="flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
                   >
                     <Plus size={12} />
-                    Add Field
+                    Adicionar
                   </button>
                 </div>
                 <div className="space-y-2">
@@ -162,7 +172,7 @@ export function NodeInspector() {
                               fields[idx] = { ...field, name: e.target.value };
                               updateNode(node.id, { fields });
                             }}
-                            placeholder="field name"
+                            placeholder="Nome do campo"
                             className="flex-1 rounded border border-gray-300 px-2 py-1 text-xs text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                           />
                           <select
@@ -177,8 +187,8 @@ export function NodeInspector() {
                             className="rounded border border-gray-300 px-1 py-1 text-xs text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                           >
                             {FIELD_TYPES.map((t) => (
-                              <option key={t} value={t}>
-                                {t}
+                              <option key={t.value} value={t.value}>
+                                {t.label}
                               </option>
                             ))}
                           </select>
@@ -255,7 +265,7 @@ export function NodeInspector() {
                   )}
                   {((node.data.fields ?? []) as FieldDef[]).length === 0 && (
                     <p className="text-xs text-gray-400 dark:text-gray-500">
-                      No fields. Click "Add Field" to start.
+                      Nenhum campo ainda. Clique em "Adicionar" para começar.
                     </p>
                   )}
                 </div>
@@ -267,7 +277,7 @@ export function NodeInspector() {
             <>
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-                  Route Path
+                  Endereço da API
                 </label>
                 <input
                   type="text"
@@ -281,7 +291,7 @@ export function NodeInspector() {
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-                  Method
+                  Operação principal
                 </label>
                 <select
                   value={node.data.method ?? "GET"}
@@ -293,11 +303,11 @@ export function NodeInspector() {
                   }
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                 >
-                  <option value="GET">GET</option>
-                  <option value="POST">POST</option>
-                  <option value="PUT">PUT</option>
-                  <option value="PATCH">PATCH</option>
-                  <option value="DELETE">DELETE</option>
+                  <option value="GET">Buscar dados (GET)</option>
+                  <option value="POST">Criar novo (POST)</option>
+                  <option value="PUT">Atualizar (PUT)</option>
+                  <option value="PATCH">Atualizar parcial (PATCH)</option>
+                  <option value="DELETE">Remover (DELETE)</option>
                 </select>
               </div>
             </>
@@ -307,36 +317,43 @@ export function NodeInspector() {
             <>
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-                  Framework
+                  Tecnologia
                 </label>
-                <input
-                  type="text"
+                <select
                   value={node.data.framework ?? "NEXTJS"}
                   onChange={(e) =>
                     updateNode(node.id, { framework: e.target.value })
                   }
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-600"
-                />
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                >
+                  <option value="NEXTJS">Next.js (Recomendado)</option>
+                  <option value="REACT">React</option>
+                  <option value="ASTRO">Astro</option>
+                  <option value="SVELTE">SvelteKit</option>
+                </select>
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-                  Styling
+                  Estilo visual
                 </label>
-                <input
-                  type="text"
+                <select
                   value={node.data.styling ?? "TAILWIND"}
                   onChange={(e) =>
                     updateNode(node.id, { styling: e.target.value })
                   }
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-600"
-                />
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                >
+                  <option value="TAILWIND">Tailwind CSS (Recomendado)</option>
+                  <option value="STYLED">Styled Components</option>
+                  <option value="CSS">CSS Puro</option>
+                </select>
               </div>
             </>
           )}
 
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-              Region
+              Região
             </label>
             <input
               type="text"
@@ -354,7 +371,7 @@ export function NodeInspector() {
           className="flex w-full items-center justify-center gap-2 rounded-md border border-red-300 px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/30"
         >
           <Trash2 size={14} />
-          Delete Node
+          Excluir bloco
         </button>
       </div>
     </div>

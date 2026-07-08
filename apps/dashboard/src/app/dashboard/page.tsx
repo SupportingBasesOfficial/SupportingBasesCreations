@@ -9,6 +9,7 @@ import { DeployButton } from "../../components/flow/controls/DeployButton";
 import { CanvasToolbar } from "../../components/flow/controls/CanvasToolbar";
 import { CanvasContextMenu } from "../../components/flow/controls/CanvasContextMenu";
 import { TemplatesGallery } from "../../components/flow/controls/TemplatesGallery";
+import { OnboardingGuide } from "../../components/flow/controls/OnboardingGuide";
 import { ExportZipButton } from "../../components/flow/controls/ExportZipButton";
 import { AICopilot } from "../../components/flow/controls/AICopilot";
 import { CodePreview } from "../../components/flow/controls/CodePreview";
@@ -279,6 +280,7 @@ export default function DashboardPage() {
         onClose={() => setShowCloudSettings(false)}
       />
       <ToastContainer />
+      <OnboardingGuide />
     </ErrorBoundary>
   );
 }
