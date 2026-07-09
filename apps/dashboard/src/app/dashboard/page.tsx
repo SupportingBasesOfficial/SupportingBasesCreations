@@ -13,6 +13,7 @@ import { OnboardingGuide } from "../../components/flow/controls/OnboardingGuide"
 import { ExportZipButton } from "../../components/flow/controls/ExportZipButton";
 import { AICopilot } from "../../components/flow/controls/AICopilot";
 import { CodePreview } from "../../components/flow/controls/CodePreview";
+import { LivePreview } from "../../components/flow/controls/LivePreview";
 import { DeployLogs } from "../../components/flow/controls/DeployLogs";
 import { PresenceAvatars } from "../../components/collaboration/PresenceAvatars";
 import { ShareDialog } from "../../components/collaboration/ShareDialog";
@@ -223,6 +224,7 @@ export default function DashboardPage() {
             </Link>
             <div className="h-6 w-px bg-gray-200 dark:bg-gray-700" />
             <AICopilot />
+            <LivePreview />
             <CodePreview />
             <TemplatesGallery />
             <ShareDialog />
