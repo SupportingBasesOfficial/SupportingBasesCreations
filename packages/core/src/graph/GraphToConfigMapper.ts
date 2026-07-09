@@ -19,6 +19,38 @@ function toPascalCase(input: string): string {
   return camel.charAt(0).toUpperCase() + camel.slice(1);
 }
 
+const FIELD_TYPE_MAP: Record<string, string> = {
+  string: "STRING",
+  text: "TEXT",
+  uuid: "UUID",
+  integer: "INTEGER",
+  bigint: "BIGINT",
+  float: "FLOAT",
+  decimal: "DECIMAL",
+  boolean: "BOOLEAN",
+  timestamp: "TIMESTAMP",
+  datetime: "DATETIME",
+  date: "DATE",
+  jsonb: "JSONB",
+  json: "JSON",
+  enum: "ENUM",
+  array: "ARRAY",
+  blob: "BLOB",
+};
+
+function normalizeFieldType(rawType: string): string {
+  const normalized = FIELD_TYPE_MAP[rawType.toLowerCase()];
+  if (normalized) return normalized;
+  const upper = rawType.toUpperCase();
+  if (
+    upper in FIELD_TYPE_MAP ||
+    Object.values(FIELD_TYPE_MAP).includes(upper)
+  ) {
+    return upper;
+  }
+  return "STRING";
+}
+
 export class GraphToConfigMapper {
   private graph: ArchitectureGraph;
   private projectName: string;
@@ -36,13 +68,24 @@ export class GraphToConfigMapper {
     const cacheNodes = this.getNodesByType(NodeType.CACHE_LAYER);
     const queueNodes = this.getNodesByType(NodeType.QUEUE_SERVICE);
     const cdnNodes = this.getNodesByType(NodeType.CDN_EDGE);
+    const webhookNodes = this.getNodesByType(NodeType.WEBHOOK_HANDLER);
 
-    const entities = databaseNodes.map((node) => this.mapEntity(node));
+    const hasAuth = authNodes.length > 0;
+    const dbRelationships = this.extractDbRelationships(databaseNodes);
+
+    const entities = databaseNodes.map((node) =>
+      this.mapEntity(node, dbRelationships, hasAuth),
+    );
     const services = apiNodes.map((node) =>
       this.mapService(node, this.graph.edges),
     );
+    const webhookServices = webhookNodes.map((node) =>
+      this.mapWebhookService(node),
+    );
+    const allServices = [...services, ...webhookServices];
+
     const providers = this.extractProviders(authNodes);
-    const features = this.extractAllFeatures();
+    const features = this.extractAllFeatures(hasAuth, webhookNodes.length > 0);
     const regions = this.extractRegions();
     const frontend = this.mapFrontend(frontendNodes, features);
     const infrastructure = this.mapInfrastructure(
@@ -53,17 +96,56 @@ export class GraphToConfigMapper {
       regions,
     );
 
+    const description = this.extractDescription();
+
     return {
       name: this.projectName,
-      description: this.graph.nodes[0]?.data.description ?? "",
+      description,
       architecture: this.determineArchitecture(apiNodes),
       regions: regions.length > 0 ? regions : ["us-east-1"],
       entities,
-      services,
+      services: allServices,
       providers,
       frontend,
       infrastructure,
     };
+  }
+
+  private extractDescription(): string {
+    const frontendNode = this.getNodesByType(NodeType.FRONTEND_COMPONENT)[0];
+    if (frontendNode?.data.description) {
+      return frontendNode.data.description;
+    }
+    const anyNode = this.graph.nodes.find((n) => n.data.description);
+    return anyNode?.data.description ?? `Aplicação ${this.projectName}`;
+  }
+
+  private extractDbRelationships(
+    databaseNodes: GraphNode[],
+  ): Map<string, Array<{ target: string; type: string }>> {
+    const relationships = new Map<
+      string,
+      Array<{ target: string; type: string }>
+    >();
+    const dbIds = new Set(databaseNodes.map((n) => n.id));
+
+    for (const edge of this.graph.edges) {
+      if (dbIds.has(edge.source) && dbIds.has(edge.target)) {
+        const sourceNode = this.graph.nodes.find((n) => n.id === edge.source);
+        const targetNode = this.graph.nodes.find((n) => n.id === edge.target);
+        if (!sourceNode || !targetNode) continue;
+
+        const sourceName = toPascalCase(sourceNode.data.label);
+        const targetName = toPascalCase(targetNode.data.label);
+        const relType = edge.label ?? "ONE_TO_MANY";
+
+        const existing = relationships.get(sourceName) ?? [];
+        existing.push({ target: targetName, type: relType });
+        relationships.set(sourceName, existing);
+      }
+    }
+
+    return relationships;
   }
 
   private getNodesByType(type: NodeType): GraphNode[] {
@@ -72,19 +154,36 @@ export class GraphToConfigMapper {
 
   private mapEntity(
     node: GraphNode,
+    relationships: Map<string, Array<{ target: string; type: string }>>,
+    hasAuth: boolean,
   ): NonNullable<ProjectConfig["entities"]>[0] {
+    const entityName = toPascalCase(node.data.label);
+    const baseFields = (node.data.fields ?? []).map((f) => ({
+      name: f.name,
+      type: normalizeFieldType(f.type),
+      required: f.required ?? false,
+      unique: f.unique ?? false,
+      nullable: f.nullable ?? false,
+    }));
+
+    const relFields = (relationships.get(entityName) ?? []).map((rel) => ({
+      name: `${rel.target.toLowerCase()}Id`,
+      type: "RELATION",
+      required: false,
+      unique: false,
+      nullable: true,
+    }));
+
+    const features = [...(node.data.features ?? [])];
+    if (hasAuth && !features.includes("AUTH")) {
+      features.push("AUTH");
+    }
+
     return {
-      name: toPascalCase(node.data.label),
-      fields: (node.data.fields ?? []).map((f) => ({
-        name: f.name,
-        type: f.type,
-        required: f.required ?? false,
-        unique: f.unique ?? false,
-        nullable: f.nullable ?? false,
-      })),
-      features: node.data.features ?? [],
-      tableName:
-        node.data.tableName ?? toPascalCase(node.data.label).toLowerCase(),
+      name: entityName,
+      fields: [...baseFields, ...relFields],
+      features,
+      tableName: node.data.tableName ?? entityName.toLowerCase(),
     };
   }
 
@@ -98,10 +197,29 @@ export class GraphToConfigMapper {
       .filter((n) => n?.type === NodeType.CLOUD_DATABASE)
       .map((n) => toPascalCase(n!.data.label));
 
+    const connectedToQueue = edges
+      .filter((e) => e.source === node.id)
+      .some((e) => {
+        const target = this.graph.nodes.find((n) => n.id === e.target);
+        return target?.type === NodeType.QUEUE_SERVICE;
+      });
+
+    const serviceType = connectedToQueue ? "ASYNC" : "SYNC";
+
     return {
       name: toCamelCase(node.data.label),
       entities: connectedEntities,
-      type: node.data.method ?? "SYNC",
+      type: serviceType,
+    };
+  }
+
+  private mapWebhookService(
+    node: GraphNode,
+  ): NonNullable<ProjectConfig["services"]>[0] {
+    return {
+      name: toCamelCase(node.data.label),
+      entities: [],
+      type: "EVENT_DRIVEN",
     };
   }
 
@@ -115,7 +233,7 @@ export class GraphToConfigMapper {
     return [...new Set(providers)];
   }
 
-  private extractAllFeatures(): string[] {
+  private extractAllFeatures(hasAuth: boolean, hasWebhooks: boolean): string[] {
     const features = new Set<string>();
     for (const node of this.graph.nodes) {
       if (node.data.features) {
@@ -123,6 +241,20 @@ export class GraphToConfigMapper {
           features.add(f);
         }
       }
+    }
+    if (hasAuth) {
+      features.add("AUTH");
+    }
+    if (hasWebhooks) {
+      features.add("WEBHOOKS");
+    }
+    const hasCdn = this.getNodesByType(NodeType.CDN_EDGE).length > 0;
+    if (hasCdn) {
+      features.add("CDN");
+    }
+    const hasCache = this.getNodesByType(NodeType.CACHE_LAYER).length > 0;
+    if (hasCache) {
+      features.add("RATE_LIMITING");
     }
     return Array.from(features);
   }
@@ -142,13 +274,20 @@ export class GraphToConfigMapper {
     features: string[],
   ): ProjectConfig["frontend"] {
     const primary = frontendNodes[0];
+    const pages = frontendNodes
+      .map((n) => {
+        const route = n.data.route;
+        if (route && route.startsWith("/")) return route;
+        const label = toCamelCase(n.data.label);
+        return `/${label}`;
+      })
+      .filter(Boolean);
+
     return {
       framework: primary?.data.framework ?? "NEXTJS",
       styling: primary?.data.styling ?? "TAILWIND",
       features,
-      pages: frontendNodes
-        .map((n) => n.data.route ?? toCamelCase(n.data.label))
-        .filter(Boolean),
+      pages: pages.length > 0 ? pages : ["/"],
     };
   }
 
@@ -168,7 +307,7 @@ export class GraphToConfigMapper {
       cloud: "VERCEL",
       database: dbType,
       cache: hasCache ? "REDIS" : "NONE",
-      queue: hasQueue ? (queueNodes[0]?.data.provider ?? "RABBITMQ") : "NONE",
+      queue: hasQueue ? "RABBITMQ" : "NONE",
       cdn: hasCdn,
       regions: regions.length > 0 ? regions : ["us-east-1"],
     };

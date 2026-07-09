@@ -163,8 +163,10 @@ export async function POST(request: NextRequest) {
                 s.name,
                 (s.type === "ASYNC"
                   ? ServiceType.ASYNC
-                  : ServiceType.SYNC) as ServiceType,
-                { endpoints: s.entities },
+                  : s.type === "EVENT_DRIVEN"
+                    ? ServiceType.EVENT_DRIVEN
+                    : ServiceType.SYNC) as ServiceType,
+                { endpoints: s.entities.map((e) => `/api/${e.toLowerCase()}`) },
               ),
           );
 

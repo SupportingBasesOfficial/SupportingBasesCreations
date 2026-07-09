@@ -9,6 +9,9 @@ import {
   ArrowLeft,
   Loader2,
   FileCode,
+  Search,
+  Boxes,
+  Calendar,
 } from "lucide-react";
 import { UserMenu } from "../../components/UserMenu";
 import { ThemeToggle } from "../../components/ThemeToggle";
@@ -18,6 +21,7 @@ interface Project {
   id: string;
   name: string;
   description: string;
+  graph_data: { nodes?: unknown[]; edges?: unknown[] } | null;
   updated_at: string;
   created_at: string;
 }
@@ -28,6 +32,7 @@ export default function ProjectsPage() {
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
   const [showNew, setShowNew] = useState(false);
+  const [search, setSearch] = useState("");
   const toast = useToast();
 
   const loadProjects = () => {
@@ -156,50 +161,110 @@ export default function ProjectsPage() {
           </div>
         ) : projects.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <FileCode
-              size={48}
-              className="mb-4 text-gray-300 dark:text-gray-700"
-            />
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Nenhum projeto ainda. Crie sua primeira arquitetura.
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-900/20">
+              <FileCode size={32} className="text-blue-400" />
+            </div>
+            <h3 className="mb-1 text-sm font-semibold text-gray-700 dark:text-gray-200">
+              Nenhum projeto ainda
+            </h3>
+            <p className="mb-4 max-w-xs text-xs text-gray-500 dark:text-gray-400">
+              Crie sua primeira arquitetura ou comece direto pelo painel com IA
+              ou templates.
             </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowNew(true)}
+                className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-700"
+              >
+                <Plus size={14} />
+                Criar Projeto
+              </button>
+              <Link
+                href="/dashboard"
+                className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+              >
+                Ir para o Painel
+              </Link>
+            </div>
           </div>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {projects.map((project) => (
-              <div
-                key={project.id}
-                className="group rounded-lg border border-gray-200 bg-white p-4 transition-all hover:shadow-md dark:border-gray-700 dark:bg-gray-800"
-              >
-                <Link
-                  href={`/dashboard?project=${project.id}`}
-                  className="block"
-                >
-                  <h3 className="font-medium text-gray-800 dark:text-gray-100">
-                    {project.name}
-                  </h3>
-                  <p className="mt-1 text-xs text-gray-400">
-                    Atualizado{" "}
-                    {new Date(project.updated_at).toLocaleDateString()}
-                  </p>
-                </Link>
-                <div className="mt-3 flex items-center justify-between">
-                  <Link
-                    href={`/dashboard?project=${project.id}`}
-                    className="text-xs font-medium text-blue-600 hover:underline"
-                  >
-                    Abrir →
-                  </Link>
-                  <button
-                    onClick={() => handleDelete(project.id, project.name)}
-                    className="text-gray-400 opacity-0 transition-opacity hover:text-red-500 group-hover:opacity-100"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+          <>
+            <div className="mb-4 relative">
+              <Search
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar projetos..."
+                className="w-full rounded-lg border border-gray-300 py-2 pl-9 pr-3 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-600"
+              />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {projects
+                .filter((p) =>
+                  p.name.toLowerCase().includes(search.toLowerCase()),
+                )
+                .map((project) => {
+                  const nodeCount = project.graph_data?.nodes?.length ?? 0;
+                  return (
+                    <div
+                      key={project.id}
+                      className="group rounded-lg border border-gray-200 bg-white p-4 transition-all hover:shadow-md dark:border-gray-700 dark:bg-gray-800"
+                    >
+                      <Link
+                        href={`/dashboard?project=${project.id}`}
+                        className="block"
+                      >
+                        <h3 className="font-medium text-gray-800 dark:text-gray-100">
+                          {project.name}
+                        </h3>
+                        {project.description && (
+                          <p className="mt-1 line-clamp-2 text-xs text-gray-500 dark:text-gray-400">
+                            {project.description}
+                          </p>
+                        )}
+                        <div className="mt-3 flex items-center gap-3 text-xs text-gray-400 dark:text-gray-500">
+                          <span className="flex items-center gap-1">
+                            <Boxes size={12} />
+                            {nodeCount} bloco{nodeCount !== 1 ? "s" : ""}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Calendar size={12} />
+                            {new Date(project.updated_at).toLocaleDateString(
+                              "pt-BR",
+                            )}
+                          </span>
+                        </div>
+                      </Link>
+                      <div className="mt-3 flex items-center justify-between">
+                        <Link
+                          href={`/dashboard?project=${project.id}`}
+                          className="text-xs font-medium text-blue-600 hover:underline"
+                        >
+                          Abrir →
+                        </Link>
+                        <button
+                          onClick={() => handleDelete(project.id, project.name)}
+                          className="text-gray-400 opacity-0 transition-opacity hover:text-red-500 group-hover:opacity-100"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+            {projects.filter((p) =>
+              p.name.toLowerCase().includes(search.toLowerCase()),
+            ).length === 0 && (
+              <p className="py-8 text-center text-sm text-gray-400">
+                Nenhum projeto encontrado para "{search}"
+              </p>
+            )}
+          </>
         )}
       </div>
       <ToastContainer />

@@ -22,6 +22,7 @@ interface Template {
   name: string;
   description: string;
   icon: string;
+  category: "iniciante" | "intermediario" | "avancado";
   nodes: TemplateNode[];
   edges: TemplateEdge[];
 }
@@ -32,6 +33,7 @@ const TEMPLATES: Template[] = [
     name: "SaaS Starter",
     description: "Postgres + API de Auth + frontend Next.js",
     icon: "🚀",
+    category: "iniciante",
     nodes: [
       {
         type: NodeType.CLOUD_DATABASE,
@@ -108,6 +110,7 @@ const TEMPLATES: Template[] = [
     name: "Blog / CMS",
     description: "Supabase + API de Conteúdo + frontend estático",
     icon: "📝",
+    category: "iniciante",
     nodes: [
       {
         type: NodeType.CLOUD_DATABASE,
@@ -184,6 +187,7 @@ const TEMPLATES: Template[] = [
     name: "E-Commerce",
     description: "Banco + API de Produtos + API de Pedidos + Loja",
     icon: "🛒",
+    category: "intermediario",
     nodes: [
       {
         type: NodeType.CLOUD_DATABASE,
@@ -273,6 +277,7 @@ const TEMPLATES: Template[] = [
     name: "Realtime Chat",
     description: "Supabase Realtime + Auth + Interface de Chat",
     icon: "💬",
+    category: "intermediario",
     nodes: [
       {
         type: NodeType.CLOUD_DATABASE,
@@ -349,6 +354,7 @@ const TEMPLATES: Template[] = [
     name: "App de Delivery",
     description: "Restaurantes, pedidos, entregadores — completo",
     icon: "🛵",
+    category: "avancado",
     nodes: [
       {
         type: NodeType.CLOUD_DATABASE,
@@ -693,6 +699,7 @@ const TEMPLATES: Template[] = [
     name: "Rede Social",
     description: "Posts, comentários, curtidas, seguidores",
     icon: "📱",
+    category: "avancado",
     nodes: [
       {
         type: NodeType.CLOUD_DATABASE,
@@ -935,6 +942,7 @@ const TEMPLATES: Template[] = [
     name: "Gestor de Tarefas",
     description: "Projetos, tarefas, equipes e prazos",
     icon: "✅",
+    category: "intermediario",
     nodes: [
       {
         type: NodeType.CLOUD_DATABASE,
@@ -1173,6 +1181,7 @@ const TEMPLATES: Template[] = [
     name: "Plataforma de Cursos",
     description: "Cursos, aulas, matrículas e progresso",
     icon: "🎓",
+    category: "avancado",
     nodes: [
       {
         type: NodeType.CLOUD_DATABASE,
@@ -1418,6 +1427,29 @@ const TEMPLATES: Template[] = [
   },
 ];
 
+const NODE_TYPE_COLORS: Record<string, string> = {
+  CLOUD_DATABASE: "bg-blue-500",
+  API_ROUTE: "bg-green-500",
+  FRONTEND_COMPONENT: "bg-purple-500",
+  AUTH_SERVICE: "bg-amber-500",
+  CACHE_LAYER: "bg-red-400",
+  QUEUE_SERVICE: "bg-orange-500",
+  CDN_EDGE: "bg-cyan-400",
+  WEBHOOK_HANDLER: "bg-pink-400",
+};
+
+const CATEGORY_LABELS: Record<Template["category"], string> = {
+  iniciante: "Iniciante",
+  intermediario: "Intermediário",
+  avancado: "Avançado",
+};
+
+const CATEGORY_ORDER: Template["category"][] = [
+  "iniciante",
+  "intermediario",
+  "avancado",
+];
+
 export function TemplatesGallery() {
   const [open, setOpen] = useState(false);
   const loadGraph = useGraphStore((s) => s.loadGraph);
@@ -1482,37 +1514,58 @@ export function TemplatesGallery() {
                 <X size={20} />
               </button>
             </div>
-            <div className="grid grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto">
-              {TEMPLATES.map((tpl) => (
-                <button
-                  key={tpl.id}
-                  onClick={() => applyTemplate(tpl)}
-                  className="flex flex-col items-start gap-2 rounded-lg border border-gray-200 p-4 text-left transition-all hover:border-blue-400 hover:shadow-md dark:border-gray-700 dark:hover:border-blue-500"
-                >
-                  <span className="text-3xl">{tpl.icon}</span>
-                  <div>
-                    <div className="text-sm font-semibold text-gray-800 dark:text-gray-100">
-                      {tpl.name}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      {tpl.description}
-                    </div>
-                  </div>
-                  <div className="mt-1 flex items-center gap-2">
-                    <span className="text-xs text-gray-400 dark:text-gray-500">
-                      {tpl.nodes.length} blocos
-                    </span>
-                    <div className="flex gap-1">
-                      {tpl.nodes.slice(0, 8).map((_, i) => (
-                        <span
-                          key={i}
-                          className="h-1.5 w-1.5 rounded-full bg-blue-400"
-                        />
+            <div className="max-h-[60vh] space-y-6 overflow-y-auto pr-1">
+              {CATEGORY_ORDER.map((cat) => {
+                const catTemplates = TEMPLATES.filter(
+                  (t) => t.category === cat,
+                );
+                if (catTemplates.length === 0) return null;
+                return (
+                  <div key={cat}>
+                    <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                      {CATEGORY_LABELS[cat]}
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      {catTemplates.map((tpl) => (
+                        <button
+                          key={tpl.id}
+                          onClick={() => applyTemplate(tpl)}
+                          className="flex flex-col items-start gap-2 rounded-lg border border-gray-200 p-4 text-left transition-all hover:border-blue-400 hover:shadow-md dark:border-gray-700 dark:hover:border-blue-500"
+                        >
+                          <span className="text-3xl">{tpl.icon}</span>
+                          <div>
+                            <div className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+                              {tpl.name}
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              {tpl.description}
+                            </div>
+                          </div>
+                          <div className="mt-1 flex items-center gap-2">
+                            <span className="text-xs text-gray-400 dark:text-gray-500">
+                              {tpl.nodes.length} blocos
+                            </span>
+                            <div className="flex gap-1">
+                              {tpl.nodes.slice(0, 8).map((n, i) => (
+                                <span
+                                  key={i}
+                                  className={`h-2 w-2 rounded-full ${NODE_TYPE_COLORS[n.type] ?? "bg-gray-400"}`}
+                                  title={n.type}
+                                />
+                              ))}
+                              {tpl.nodes.length > 8 && (
+                                <span className="text-[10px] text-gray-400">
+                                  +{tpl.nodes.length - 8}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </button>
                       ))}
                     </div>
                   </div>
-                </button>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>

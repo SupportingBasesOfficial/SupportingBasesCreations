@@ -113,9 +113,38 @@ export function DeployButton({
                     type="text"
                     value={projectName}
                     onChange={(e) => setProjectName(e.target.value)}
+                    placeholder="ex: minha-loja, blog-pessoal, app-delivery"
                     className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-600"
                   />
+                  <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                    Use apenas letras minúsculas e hífens. Ex: minha-loja
+                  </p>
                 </div>
+
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/50">
+                  <p className="mb-2 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                    O que vai acontecer:
+                  </p>
+                  <ul className="space-y-1.5 text-xs text-gray-600 dark:text-gray-300">
+                    <li className="flex items-center gap-2">
+                      <span className="text-green-500">✓</span>
+                      Código gerado a partir do seu diagrama
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="text-green-500">✓</span>
+                      Repositório criado no GitHub
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="text-green-500">✓</span>
+                      App publicado na Vercel (acessível por link)
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="text-green-500">✓</span>
+                      Banco de dados configurado no Supabase
+                    </li>
+                  </ul>
+                </div>
+
                 {!cloudConfig && (
                   <div className="flex items-center gap-2 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
                     <AlertCircle size={16} />
@@ -123,12 +152,27 @@ export function DeployButton({
                     Supabase primeiro nas configurações.
                   </div>
                 )}
+                {!isValid && nodeCount > 0 && (
+                  <div className="flex items-center gap-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400">
+                    <AlertCircle size={16} />
+                    Há erros no diagrama. Corrija antes de publicar.
+                  </div>
+                )}
+                {nodeCount === 0 && (
+                  <div className="flex items-center gap-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400">
+                    <AlertCircle size={16} />
+                    Adicione blocos ao diagrama antes de publicar.
+                  </div>
+                )}
                 <button
                   onClick={handleDeploy}
-                  disabled={!cloudConfig}
-                  className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+                  disabled={!cloudConfig || !isValid || nodeCount === 0}
+                  className="w-full rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition-all hover:from-blue-700 hover:to-indigo-700 disabled:cursor-not-allowed disabled:from-gray-300 disabled:to-gray-300"
                 >
-                  Iniciar Publicação
+                  <span className="flex items-center justify-center gap-2">
+                    <Rocket size={16} />
+                    Iniciar Publicação
+                  </span>
                 </button>
               </div>
             )}
@@ -186,28 +230,48 @@ export function DeployButton({
               <div className="space-y-4">
                 {result.success ? (
                   <>
-                    <div className="flex items-center gap-2 rounded-md bg-green-50 px-4 py-3 text-sm text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                      <CheckCircle2 size={20} />
-                      <span className="font-medium">
+                    <div className="flex flex-col items-center gap-2 rounded-md bg-green-50 px-4 py-4 text-center dark:bg-green-900/30">
+                      <CheckCircle2
+                        size={32}
+                        className="text-green-600 dark:text-green-400"
+                      />
+                      <span className="font-semibold text-green-700 dark:text-green-400">
                         Projeto publicado com sucesso!
+                      </span>
+                      <span className="text-xs text-green-600 dark:text-green-500">
+                        Seu app já está no ar e acessível pelos links abaixo
                       </span>
                     </div>
                     <div className="space-y-2">
-                      {result.githubUrl && (
-                        <DeployLink label="GitHub" url={result.githubUrl} />
-                      )}
                       {result.vercelUrl && (
-                        <DeployLink label="Vercel" url={result.vercelUrl} />
+                        <DeployLink
+                          label="Seu app (Vercel)"
+                          url={result.vercelUrl}
+                        />
+                      )}
+                      {result.githubUrl && (
+                        <DeployLink
+                          label="Código (GitHub)"
+                          url={result.githubUrl}
+                        />
                       )}
                       {result.supabaseUrl && (
-                        <DeployLink label="Supabase" url={result.supabaseUrl} />
+                        <DeployLink
+                          label="Banco (Supabase)"
+                          url={result.supabaseUrl}
+                        />
                       )}
                     </div>
                   </>
                 ) : (
-                  <div className="flex items-center gap-2 rounded-md bg-red-50 px-4 py-3 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400">
-                    <AlertCircle size={20} />
-                    <span>{result.error}</span>
+                  <div className="space-y-2 rounded-md bg-red-50 px-4 py-3 dark:bg-red-900/30">
+                    <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400">
+                      <AlertCircle size={20} />
+                      <span className="font-medium">Falha na publicação</span>
+                    </div>
+                    <p className="text-xs text-red-500 dark:text-red-400">
+                      {result.error}
+                    </p>
                   </div>
                 )}
                 <button
@@ -225,7 +289,7 @@ export function DeployButton({
                   >
                     <span className="flex items-center justify-center gap-2">
                       <Rocket size={16} />
-                      Deploy Novamente
+                      Publicar Novamente
                     </span>
                   </button>
                 )}
