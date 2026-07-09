@@ -1,10 +1,10 @@
-import { Project, FeatureFlag, ArchitectureType } from '@sbc/core';
-import type { Generator, GenerationContext } from '@sbc/core';
-import type { GeneratedArtifact } from '@sbc/shared';
+import { Project, FeatureFlag, ArchitectureType } from "@sbc/core";
+import type { Generator, GenerationContext } from "@sbc/core";
+import type { GeneratedArtifact } from "@sbc/shared";
 
 export class PactGenerator implements Generator {
-  readonly name = 'pact';
-  readonly version = '1.0.0';
+  readonly name = "pact";
+  readonly version = "1.0.0";
   readonly supportedFeatures: readonly FeatureFlag[] = [];
   readonly supportedArchitectures: readonly ArchitectureType[] = [
     ArchitectureType.MICROSERVICES,
@@ -16,21 +16,21 @@ export class PactGenerator implements Generator {
     const artifacts: GeneratedArtifact[] = [];
 
     artifacts.push({
-      path: 'pacts/provider.pact.spec.ts',
+      path: "pacts/provider.pact.spec.ts",
       content: this.generateProviderTests(project),
-      language: 'typescript',
+      language: "typescript",
     });
 
     artifacts.push({
-      path: 'pacts/consumer.pact.spec.ts',
+      path: "pacts/consumer.pact.spec.ts",
       content: this.generateConsumerTests(),
-      language: 'typescript',
+      language: "typescript",
     });
 
     artifacts.push({
-      path: '.github/workflows/pact-verification.yml',
+      path: ".github/workflows/pact-verification.yml",
       content: this.generatePactCI(),
-      language: 'yaml',
+      language: "yaml",
     });
 
     return artifacts;
@@ -137,7 +137,7 @@ jobs:
       - uses: pnpm/action-setup@v2
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'pnpm'
       - run: pnpm install
       - run: pnpm db:push

@@ -1,10 +1,18 @@
-import { Project, Entity, Field, FeatureFlag, ArchitectureType, FieldType, RelationType } from '@sbc/core';
-import type { Generator, GenerationContext } from '@sbc/core';
-import type { GeneratedArtifact } from '@sbc/shared';
+import {
+  Project,
+  Entity,
+  Field,
+  FeatureFlag,
+  ArchitectureType,
+  FieldType,
+  RelationType,
+} from "@sbc/core";
+import type { Generator, GenerationContext } from "@sbc/core";
+import type { GeneratedArtifact } from "@sbc/shared";
 
 export class PrismaGenerator implements Generator {
-  readonly name = 'prisma';
-  readonly version = '1.0.0';
+  readonly name = "prisma";
+  readonly version = "1.0.0";
   readonly supportedFeatures: readonly FeatureFlag[] = [];
   readonly supportedArchitectures: readonly ArchitectureType[] = [];
 
@@ -14,17 +22,20 @@ export class PrismaGenerator implements Generator {
 
     const schema = this.generatePrismaSchema(project);
     artifacts.push({
-      path: 'prisma/schema.prisma',
+      path: "prisma/schema.prisma",
       content: schema,
-      language: 'prisma',
-      metadata: { generator: this.name, entities: project.options.entities.length },
+      language: "prisma",
+      metadata: {
+        generator: this.name,
+        entities: project.options.entities.length,
+      },
     });
 
     const seed = this.generateSeedScript(project);
     artifacts.push({
-      path: 'prisma/seed.ts',
+      path: "prisma/seed.ts",
       content: seed,
-      language: 'typescript',
+      language: "typescript",
       metadata: { generator: this.name },
     });
 
@@ -33,23 +44,23 @@ export class PrismaGenerator implements Generator {
 
   private generatePrismaSchema(project: Project): string {
     const lines: string[] = [
-      'generator client {',
+      "generator client {",
       '  provider = "prisma-client-js"',
-      '}',
-      '',
-      'datasource db {',
+      "}",
+      "",
+      "datasource db {",
       '  provider = "postgresql"',
       '  url      = env("DATABASE_URL")',
-      '}',
-      '',
+      "}",
+      "",
     ];
 
     for (const entity of project.options.entities) {
       lines.push(...this.generateModel(entity));
-      lines.push('');
+      lines.push("");
     }
 
-    return lines.join('\n');
+    return lines.join("\n");
   }
 
   private generateModel(entity: Entity): string[] {
@@ -61,26 +72,37 @@ export class PrismaGenerator implements Generator {
     }
 
     if (entity.hasFeature(FeatureFlag.SOFT_DELETE)) {
-      lines.push('  deletedAt DateTime?');
+      lines.push("  deletedAt DateTime?");
     }
 
     if (entity.hasFeature(FeatureFlag.AUDIT_LOG)) {
-      lines.push('  createdAt DateTime @default(now())');
-      lines.push('  updatedAt DateTime @updatedAt');
+      lines.push("  createdAt DateTime @default(now())");
+      lines.push("  updatedAt DateTime @updatedAt");
     }
 
     const relationFields = entity.getRelationFields();
+    const indexFields: string[] = [];
     for (const field of relationFields) {
       if (field.options.targetEntity && field.options.relationType) {
         lines.push(...this.generateRelation(field));
+        if (
+          field.options.relationType === RelationType.MANY_TO_ONE ||
+          field.options.relationType === RelationType.ONE_TO_ONE
+        ) {
+          indexFields.push(`${field.name}Id`);
+        }
       }
     }
 
-    if (entity.options.features.length > 0) {
-      lines.push(`  // Features: ${entity.options.features.join(', ')}`);
+    if (indexFields.length > 0) {
+      lines.push(`  @@index([${indexFields.join(", ")}])`);
     }
 
-    lines.push('}');
+    lines.push(
+      `  @@map("${entity.options.tableName ?? entity.name.toLowerCase()}s")`,
+    );
+
+    lines.push("}");
     return lines;
   }
 
@@ -89,65 +111,67 @@ export class PrismaGenerator implements Generator {
 
     switch (field.type) {
       case FieldType.UUID:
-        parts.push('String @id @default(uuid())');
+        parts.push("String @id @default(uuid())");
         break;
       case FieldType.STRING:
-        parts.push('String');
+        parts.push("String");
         break;
       case FieldType.TEXT:
-        parts.push('String');
+        parts.push("String");
         break;
       case FieldType.INTEGER:
-        parts.push('Int');
+        parts.push("Int");
         break;
       case FieldType.BIGINT:
-        parts.push('BigInt');
+        parts.push("BigInt");
         break;
       case FieldType.DECIMAL:
-        parts.push('Decimal');
+        parts.push("Decimal");
         break;
       case FieldType.BOOLEAN:
-        parts.push('Boolean');
+        parts.push("Boolean");
         break;
       case FieldType.DATE:
-        parts.push('DateTime @db.Date');
+        parts.push("DateTime @db.Date");
         break;
       case FieldType.DATETIME:
-        parts.push('DateTime');
+        parts.push("DateTime");
         break;
       case FieldType.TIMESTAMP:
-        parts.push('DateTime @db.Timestamp()');
+        parts.push("DateTime @db.Timestamp()");
         break;
       case FieldType.JSON:
-        parts.push('Json');
+        parts.push("Json");
         break;
       case FieldType.JSONB:
-        parts.push('Json @db.JsonB');
+        parts.push("Json @db.JsonB");
         break;
       case FieldType.ENUM:
-        const values = (field.options as Record<string, unknown>).enumValues as string[];
-        parts.push(values ? values.join(' | ') : 'String');
+        const values = (field.options as Record<string, unknown>)
+          .enumValues as string[];
+        parts.push(values ? values.join(" | ") : "String");
         break;
       case FieldType.RELATION:
-        parts.push('String');
+        parts.push("String");
         break;
       default:
-        parts.push('String');
+        parts.push("String");
     }
 
-    if (field.options.unique) parts.push('@unique');
-    if (field.options.indexed) parts.push('@index');
+    if (field.options.unique) parts.push("@unique");
+    if (field.options.indexed) parts.push("@index");
     if (field.options.default !== undefined) {
-      const def = typeof field.options.default === 'string'
-        ? `"${field.options.default}"`
-        : String(field.options.default);
+      const def =
+        typeof field.options.default === "string"
+          ? `"${field.options.default}"`
+          : String(field.options.default);
       parts.push(`@default(${def})`);
     }
     if (field.options.nullable) {
-      parts[0] = parts[0].replace(/\s+$/, '') + '?';
+      parts[0] = parts[0].replace(/\s+$/, "") + "?";
     }
 
-    return parts.join(' ');
+    return parts.join(" ");
   }
 
   private generateRelation(field: Field): string[] {
@@ -157,14 +181,18 @@ export class PrismaGenerator implements Generator {
 
     switch (relationType) {
       case RelationType.MANY_TO_ONE:
-        lines.push(`  ${field.name} ${target} @relation(fields: [${field.name}Id], references: [id])`);
+        lines.push(
+          `  ${field.name} ${target} @relation(fields: [${field.name}Id], references: [id])`,
+        );
         lines.push(`  ${field.name}Id String`);
         break;
       case RelationType.ONE_TO_MANY:
         lines.push(`  ${field.name} ${target}[]`);
         break;
       case RelationType.ONE_TO_ONE:
-        lines.push(`  ${field.name} ${target}? @relation(fields: [${field.name}Id], references: [id])`);
+        lines.push(
+          `  ${field.name} ${target}? @relation(fields: [${field.name}Id], references: [id])`,
+        );
         lines.push(`  ${field.name}Id String? @unique`);
         break;
       case RelationType.MANY_TO_MANY:
@@ -178,67 +206,74 @@ export class PrismaGenerator implements Generator {
   private generateSeedScript(project: Project): string {
     const lines: string[] = [
       "import { PrismaClient } from '@prisma/client';",
-      '',
-      'const prisma = new PrismaClient();',
-      '',
-      'async function main() {',
+      "import bcrypt from 'bcryptjs';",
+      "",
+      "const prisma = new PrismaClient();",
+      "",
+      "async function main() {",
       `  console.log('Seeding ${project.name}...');`,
-      '',
+      "",
     ];
 
     for (const entity of project.options.entities) {
-      const fields = entity.fields.map((f) => {
-        switch (f.type) {
-          case 'UUID':
-            return `      ${f.name}: crypto.randomUUID()`;
-          case 'STRING':
-          case 'TEXT':
-            return `      ${f.name}: 'Sample ${f.name}'`;
-          case 'INTEGER':
-          case 'BIGINT':
-            return `      ${f.name}: 1`;
-          case 'DECIMAL':
-          case 'FLOAT':
-            return `      ${f.name}: 99.99`;
-          case 'BOOLEAN':
-            return `      ${f.name}: true`;
-          case 'DATE':
-          case 'DATETIME':
-          case 'TIMESTAMP':
-            return `      ${f.name}: new Date()`;
-          case 'JSON':
-          case 'JSONB':
-            return `      ${f.name}: { key: 'value' }`;
-          case 'ENUM':
-            return `      ${f.name}: 'OPTION_A'`;
-          case 'ARRAY':
-            return `      ${f.name}: ['item1', 'item2']`;
-          case 'BLOB':
-            return `      ${f.name}: Buffer.from('sample')`;
-          case 'RELATION':
-            return null;
-          default:
-            return `      ${f.name}: null`;
-        }
-      }).filter(Boolean);
+      const isUserEntity = entity.name.toLowerCase() === "user";
+      const fields = entity.fields
+        .map((f) => {
+          if (isUserEntity && f.name === "password") {
+            return `      ${f.name}: await bcrypt.hash('password123', 10)`;
+          }
+          switch (f.type) {
+            case "UUID":
+              return `      ${f.name}: crypto.randomUUID()`;
+            case "STRING":
+            case "TEXT":
+              return `      ${f.name}: 'Sample ${f.name}'`;
+            case "INTEGER":
+            case "BIGINT":
+              return `      ${f.name}: 1`;
+            case "DECIMAL":
+            case "FLOAT":
+              return `      ${f.name}: 99.99`;
+            case "BOOLEAN":
+              return `      ${f.name}: true`;
+            case "DATE":
+            case "DATETIME":
+            case "TIMESTAMP":
+              return `      ${f.name}: new Date()`;
+            case "JSON":
+            case "JSONB":
+              return `      ${f.name}: { key: 'value' }`;
+            case "ENUM":
+              return `      ${f.name}: 'OPTION_A'`;
+            case "ARRAY":
+              return `      ${f.name}: ['item1', 'item2']`;
+            case "BLOB":
+              return `      ${f.name}: Buffer.from('sample')`;
+            case "RELATION":
+              return null;
+            default:
+              return `      ${f.name}: null`;
+          }
+        })
+        .filter(Boolean);
 
       lines.push(`  // Seed ${entity.name}`);
       lines.push(`  await prisma.${entity.name.toLowerCase()}.create({`);
       lines.push(`    data: {`);
-      lines.push(fields.join(',\n'));
+      lines.push(fields.join(",\n"));
       lines.push(`    },`);
       lines.push(`  });`);
-      lines.push('');
+      lines.push("");
     }
 
-    lines.push('');
+    lines.push("");
     lines.push('  console.log("Seed completed.");');
-    lines.push('}');
-    lines.push('');
-    lines.push('main()');
-    lines.push('  .catch((e) => { console.error(e); process.exit(1); })');
-    lines.push('  .finally(async () => await prisma.$disconnect());');
+    lines.push("}");
+    lines.push("");
+    lines.push("main()");
+    lines.push("  .catch((e) => { console.error(e); process.exit(1); })");
+    lines.push("  .finally(async () => await prisma.$disconnect());");
 
-    return lines.join('\n');
+    return lines.join("\n");
   }
 }

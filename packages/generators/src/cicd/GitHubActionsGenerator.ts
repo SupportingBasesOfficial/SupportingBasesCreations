@@ -1,10 +1,10 @@
-import { Project, FeatureFlag, ArchitectureType } from '@sbc/core';
-import type { Generator, GenerationContext } from '@sbc/core';
-import type { GeneratedArtifact } from '@sbc/shared';
+import { Project, FeatureFlag, ArchitectureType } from "@sbc/core";
+import type { Generator, GenerationContext } from "@sbc/core";
+import type { GeneratedArtifact } from "@sbc/shared";
 
 export class GitHubActionsGenerator implements Generator {
-  readonly name = 'github-actions';
-  readonly version = '1.0.0';
+  readonly name = "github-actions";
+  readonly version = "1.0.0";
   readonly supportedFeatures: readonly FeatureFlag[] = [];
   readonly supportedArchitectures: readonly ArchitectureType[] = [];
 
@@ -13,15 +13,15 @@ export class GitHubActionsGenerator implements Generator {
     const artifacts: GeneratedArtifact[] = [];
 
     artifacts.push({
-      path: '.github/workflows/ci.yml',
+      path: ".github/workflows/ci.yml",
       content: this.generateCIWorkflow(project),
-      language: 'yaml',
+      language: "yaml",
     });
 
     artifacts.push({
-      path: '.github/workflows/deploy.yml',
+      path: ".github/workflows/deploy.yml",
       content: this.generateDeployWorkflow(project),
-      language: 'yaml',
+      language: "yaml",
     });
 
     return artifacts;
@@ -45,7 +45,7 @@ jobs:
         with: { version: 9 }
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
@@ -58,7 +58,7 @@ jobs:
         with: { version: 9 }
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
       - run: pnpm check-types
@@ -71,7 +71,7 @@ jobs:
         with: { version: 9 }
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
@@ -99,7 +99,7 @@ jobs:
         with: { version: 9 }
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
       - name: Setup Vercel CLI
@@ -136,7 +136,7 @@ jobs:
         with: { version: 9 }
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
