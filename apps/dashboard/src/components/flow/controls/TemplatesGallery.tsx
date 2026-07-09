@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useGraphStore } from "../../../store/graphStore";
 import { useToast } from "../../Toast";
 import { LayoutTemplate, X } from "lucide-react";
@@ -1422,6 +1422,12 @@ export function TemplatesGallery() {
   const [open, setOpen] = useState(false);
   const loadGraph = useGraphStore((s) => s.loadGraph);
   const toast = useToast();
+
+  useEffect(() => {
+    const handler = () => setOpen(true);
+    window.addEventListener("sbc-open-templates", handler);
+    return () => window.removeEventListener("sbc-open-templates", handler);
+  }, []);
 
   const applyTemplate = (tpl: Template) => {
     const idMap = new Map<string, string>();

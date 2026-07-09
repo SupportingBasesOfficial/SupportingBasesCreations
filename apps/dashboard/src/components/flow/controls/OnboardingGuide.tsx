@@ -17,15 +17,17 @@ const STEPS = [
     icon: Sparkles,
     title: "Descreva sua ideia",
     description:
-      "Use a barra de IA no topo para descrever o app dos seus sonhos em português. A IA vai montar a arquitetura completa para você.",
+      "Use a IA para descrever o app dos seus sonhos em português. A IA monta a arquitetura completa para você.",
     color: "text-purple-500",
+    action: { event: "sbc-open-ai-copilot", label: "Abrir IA Copiloto" },
   },
   {
     icon: LayoutTemplate,
     title: "Ou comece com um template",
     description:
-      'Clique em "Templates" para escolher uma arquitetura pronta (delivery, rede social, e-commerce, cursos e mais).',
+      "Escolha uma arquitetura pronta (delivery, rede social, e-commerce, cursos e mais). Basta clicar e usar.",
     color: "text-blue-500",
+    action: { event: "sbc-open-templates", label: "Ver Templates" },
   },
   {
     icon: MousePointerClick,
@@ -33,6 +35,7 @@ const STEPS = [
     description:
       "Clique em qualquer bloco do diagrama para editar. Adicione campos ao banco de dados, mude rotas de API, troque tecnologias.",
     color: "text-green-500",
+    action: null,
   },
   {
     icon: Rocket,
@@ -40,6 +43,7 @@ const STEPS = [
     description:
       'Quando estiver satisfeito, clique em "Publicar na Nuvem". Seu app será publicado no GitHub, Vercel e Supabase automaticamente.',
     color: "text-orange-500",
+    action: null,
   },
 ];
 
@@ -106,6 +110,18 @@ export function OnboardingGuide() {
         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
           {current.description}
         </p>
+        {current.action && (
+          <button
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent(current.action!.event));
+              handleClose();
+            }}
+            className="mt-3 flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-700"
+          >
+            {current.action.label}
+            <ArrowRight size={12} />
+          </button>
+        )}
       </div>
 
       <div className="mb-4 flex gap-1">

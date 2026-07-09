@@ -25,6 +25,9 @@ export function NodePaletteSidebar() {
     );
   }, [query]);
 
+  const basicItems = filtered.filter((i) => i.category === "basic");
+  const advancedItems = filtered.filter((i) => i.category === "advanced");
+
   return (
     <div className="flex h-full w-56 flex-col border-r border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
       <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-800">
@@ -56,29 +59,69 @@ export function NodePaletteSidebar() {
             Nenhum bloco encontrado
           </p>
         ) : (
-          <div className="space-y-2">
-            {filtered.map((item) => (
-              <div
-                key={item.type}
-                draggable
-                onDragStart={(e) => onDragStart(e, item.type)}
-                className="flex cursor-grab items-start gap-3 rounded-lg border border-gray-200 px-3 py-2.5 transition-all hover:border-gray-300 hover:shadow-sm active:cursor-grabbing dark:border-gray-700 dark:hover:border-gray-600 dark:hover:shadow-md"
-              >
-                <span className="text-xl">{item.icon}</span>
-                <div className="flex-1">
-                  <div className="text-sm font-medium text-gray-700 dark:text-gray-200">
-                    {item.label}
-                  </div>
-                  <div className="line-clamp-2 text-xs text-gray-400 dark:text-gray-500">
-                    {item.description}
-                  </div>
+          <div className="space-y-4">
+            {basicItems.length > 0 && (
+              <div>
+                <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                  Essenciais
+                </h4>
+                <div className="space-y-2">
+                  {basicItems.map((item) => (
+                    <div
+                      key={item.type}
+                      draggable
+                      onDragStart={(e) => onDragStart(e, item.type)}
+                      className="flex cursor-grab items-start gap-3 rounded-lg border border-gray-200 px-3 py-2.5 transition-all hover:border-gray-300 hover:shadow-sm active:cursor-grabbing dark:border-gray-700 dark:hover:border-gray-600 dark:hover:shadow-md"
+                    >
+                      <span className="text-xl">{item.icon}</span>
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                          {item.label}
+                        </div>
+                        <div className="line-clamp-2 text-xs text-gray-400 dark:text-gray-500">
+                          {item.description}
+                        </div>
+                      </div>
+                      <div
+                        className="h-2 w-2 rounded-full"
+                        style={{ backgroundColor: item.color }}
+                      />
+                    </div>
+                  ))}
                 </div>
-                <div
-                  className="h-2 w-2 rounded-full"
-                  style={{ backgroundColor: item.color }}
-                />
               </div>
-            ))}
+            )}
+            {advancedItems.length > 0 && (
+              <div>
+                <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                  Avançado
+                </h4>
+                <div className="space-y-2">
+                  {advancedItems.map((item) => (
+                    <div
+                      key={item.type}
+                      draggable
+                      onDragStart={(e) => onDragStart(e, item.type)}
+                      className="flex cursor-grab items-start gap-3 rounded-lg border border-gray-200 px-3 py-2.5 transition-all hover:border-gray-300 hover:shadow-sm active:cursor-grabbing dark:border-gray-700 dark:hover:border-gray-600 dark:hover:shadow-md"
+                    >
+                      <span className="text-xl">{item.icon}</span>
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                          {item.label}
+                        </div>
+                        <div className="line-clamp-2 text-xs text-gray-400 dark:text-gray-500">
+                          {item.description}
+                        </div>
+                      </div>
+                      <div
+                        className="h-2 w-2 rounded-full"
+                        style={{ backgroundColor: item.color }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

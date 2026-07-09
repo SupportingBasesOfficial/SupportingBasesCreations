@@ -29,6 +29,12 @@ export function AICopilot() {
     }
   }, [open]);
 
+  useEffect(() => {
+    const handler = () => setOpen(true);
+    window.addEventListener("sbc-open-ai-copilot", handler);
+    return () => window.removeEventListener("sbc-open-ai-copilot", handler);
+  }, []);
+
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
     setLoading(true);
@@ -65,10 +71,12 @@ export function AICopilot() {
             },
           });
         });
-        toast.success(`${aiNodes.length} blocos adicionados pela IA`);
+        toast.success(`✨ ${aiNodes.length} blocos adicionados pela IA`);
       } else {
         loadGraph({ nodes: aiNodes, edges: aiEdges });
-        toast.success("Arquitetura gerada pela IA");
+        toast.success(
+          `✨ Arquitetura gerada pela IA com ${aiNodes.length} blocos`,
+        );
       }
 
       setOpen(false);
@@ -169,6 +177,23 @@ export function AICopilot() {
                 </>
               )}
             </button>
+
+            {loading && (
+              <div className="mt-3 space-y-1.5">
+                <div className="flex items-center gap-2 text-xs text-purple-500">
+                  <Loader2 size={12} className="animate-spin" />
+                  Analisando sua ideia...
+                </div>
+                <div className="h-1 w-full overflow-hidden rounded-full bg-purple-100 dark:bg-purple-900/30">
+                  <div
+                    className="h-full w-1/3 animate-pulse rounded-full bg-purple-500"
+                    style={{
+                      animation: "sbc-progress 2s ease-in-out infinite",
+                    }}
+                  />
+                </div>
+              </div>
+            )}
 
             <p className="mt-2 text-center text-xs text-gray-400 dark:text-gray-500">
               Pressione Ctrl + Enter para gerar

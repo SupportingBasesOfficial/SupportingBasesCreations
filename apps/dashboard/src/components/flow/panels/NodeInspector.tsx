@@ -351,17 +351,23 @@ export function NodeInspector() {
             </>
           )}
 
-          <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-              Região
-            </label>
-            <input
-              type="text"
-              value={node.data.region ?? "us-east-1"}
-              onChange={(e) => updateNode(node.id, { region: e.target.value })}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-600"
-            />
-          </div>
+          {(node.type === NodeType.CDN_EDGE ||
+            node.type === NodeType.CACHE_LAYER ||
+            node.type === NodeType.QUEUE_SERVICE) && (
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+                Região
+              </label>
+              <input
+                type="text"
+                value={node.data.region ?? "us-east-1"}
+                onChange={(e) =>
+                  updateNode(node.id, { region: e.target.value })
+                }
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-600"
+              />
+            </div>
+          )}
         </div>
       </div>
 

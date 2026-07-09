@@ -173,16 +173,76 @@ function ArchitectureCanvasInner() {
     >
       {nodes.length === 0 && (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
-          <div className="pointer-events-auto text-center">
-            <div className="mb-3 flex justify-center gap-3">
-              <Sparkles size={40} className="text-purple-400" />
-              <LayoutTemplate size={40} className="text-blue-400" />
+          <div className="pointer-events-auto max-w-md text-center">
+            <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-200">
+              Bem-vindo ao SBC ASP
+            </h2>
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+              Crie aplicativos completos sem escrever código. Escolha como
+              começar:
+            </p>
+            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <button
+                onClick={() => {
+                  const event = new CustomEvent("sbc-open-ai-copilot");
+                  window.dispatchEvent(event);
+                }}
+                className="group flex flex-col items-center gap-2 rounded-xl border-2 border-purple-200 bg-purple-50 p-4 transition-all hover:border-purple-400 hover:shadow-md dark:border-purple-800 dark:bg-purple-900/20 dark:hover:border-purple-600"
+              >
+                <Sparkles
+                  size={28}
+                  className="text-purple-500 transition-transform group-hover:scale-110"
+                />
+                <span className="text-sm font-semibold text-purple-700 dark:text-purple-300">
+                  Descrever com IA
+                </span>
+                <span className="text-xs text-purple-500 dark:text-purple-400">
+                  Digite sua ideia
+                </span>
+              </button>
+              <button
+                onClick={() => {
+                  const event = new CustomEvent("sbc-open-templates");
+                  window.dispatchEvent(event);
+                }}
+                className="group flex flex-col items-center gap-2 rounded-xl border-2 border-blue-200 bg-blue-50 p-4 transition-all hover:border-blue-400 hover:shadow-md dark:border-blue-800 dark:bg-blue-900/20 dark:hover:border-blue-600"
+              >
+                <LayoutTemplate
+                  size={28}
+                  className="text-blue-500 transition-transform group-hover:scale-110"
+                />
+                <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+                  Usar Template
+                </span>
+                <span className="text-xs text-blue-500 dark:text-blue-400">
+                  Modelos prontos
+                </span>
+              </button>
+              <div
+                className="group flex cursor-grab flex-col items-center gap-2 rounded-xl border-2 border-gray-200 bg-gray-50 p-4 transition-all hover:border-gray-400 hover:shadow-md dark:border-gray-700 dark:bg-gray-800 dark:hover:border-gray-500"
+                onDragStart={(e) => {
+                  e.dataTransfer.setData(
+                    "application/nodeType",
+                    NodeType.CLOUD_DATABASE,
+                  );
+                  e.dataTransfer.effectAllowed = "move";
+                }}
+                draggable
+              >
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-green-100 text-lg dark:bg-green-900/30">
+                  🗄️
+                </div>
+                <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                  Arrastar Bloco
+                </span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  Monte do zero
+                </span>
+              </div>
             </div>
-            <h3 className="text-lg font-semibold text-gray-400 dark:text-gray-500">
-              Comece sua arquitetura
-            </h3>
-            <p className="mt-1 text-sm text-gray-400 dark:text-gray-600">
-              Arraste blocos da esquerda, use a IA ou escolha um template
+            <p className="mt-4 text-xs text-gray-400 dark:text-gray-500">
+              💡 Dica: Você pode começar com IA e depois editar os blocos
+              livremente
             </p>
           </div>
         </div>

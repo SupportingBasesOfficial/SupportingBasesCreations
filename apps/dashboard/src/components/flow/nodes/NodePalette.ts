@@ -8,6 +8,7 @@ export interface NodePaletteItem {
   icon: string;
   color: string;
   description: string;
+  category: "basic" | "advanced";
 }
 
 export const NODE_PALETTE: NodePaletteItem[] = [
@@ -17,6 +18,7 @@ export const NODE_PALETTE: NodePaletteItem[] = [
     icon: "🌐",
     color: "#3b82f6",
     description: "A interface que o usuário vê e clica",
+    category: "basic",
   },
   {
     type: NodeType.API_ROUTE,
@@ -24,6 +26,7 @@ export const NODE_PALETTE: NodePaletteItem[] = [
     icon: "⚡",
     color: "#22c55e",
     description: "Recebe pedidos e devolve dados",
+    category: "basic",
   },
   {
     type: NodeType.CLOUD_DATABASE,
@@ -31,6 +34,7 @@ export const NODE_PALETTE: NodePaletteItem[] = [
     icon: "🗄️",
     color: "#8b5cf6",
     description: "Onde os dados ficam salvos",
+    category: "basic",
   },
   {
     type: NodeType.AUTH_SERVICE,
@@ -38,6 +42,7 @@ export const NODE_PALETTE: NodePaletteItem[] = [
     icon: "🛡️",
     color: "#f97316",
     description: "Controla quem pode entrar no app",
+    category: "basic",
   },
   {
     type: NodeType.CACHE_LAYER,
@@ -45,6 +50,7 @@ export const NODE_PALETTE: NodePaletteItem[] = [
     icon: "⚡",
     color: "#eab308",
     description: "Deixa o app mais rápido guardando dados em memória",
+    category: "advanced",
   },
   {
     type: NodeType.QUEUE_SERVICE,
@@ -52,6 +58,7 @@ export const NODE_PALETTE: NodePaletteItem[] = [
     icon: "📬",
     color: "#ec4899",
     description: "Processa tarefas em segundo plano (emails, notificações)",
+    category: "advanced",
   },
   {
     type: NodeType.CDN_EDGE,
@@ -59,6 +66,7 @@ export const NODE_PALETTE: NodePaletteItem[] = [
     icon: "🌍",
     color: "#06b6d4",
     description: "Deixa o site rápido em qualquer lugar do mundo",
+    category: "advanced",
   },
   {
     type: NodeType.WEBHOOK_HANDLER,
@@ -66,6 +74,7 @@ export const NODE_PALETTE: NodePaletteItem[] = [
     icon: "🔗",
     color: "#ef4444",
     description: "Recebe avisos de outros sistemas (pagamentos, etc)",
+    category: "advanced",
   },
 ];
 
