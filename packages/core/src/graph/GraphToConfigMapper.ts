@@ -87,7 +87,12 @@ export class GraphToConfigMapper {
     const providers = this.extractProviders(authNodes);
     const features = this.extractAllFeatures(hasAuth, webhookNodes.length > 0);
     const regions = this.extractRegions();
-    const frontend = this.mapFrontend(frontendNodes, features);
+    const frontend = this.mapFrontend(
+      frontendNodes,
+      features,
+      entities,
+      hasAuth,
+    );
     const infrastructure = this.mapInfrastructure(
       cacheNodes,
       queueNodes,
@@ -272,22 +277,49 @@ export class GraphToConfigMapper {
   private mapFrontend(
     frontendNodes: GraphNode[],
     features: string[],
+    entities: { name: string; tableName?: string }[],
+    hasAuth: boolean,
   ): ProjectConfig["frontend"] {
     const primary = frontendNodes[0];
-    const pages = frontendNodes
-      .map((n) => {
-        const route = n.data.route;
-        if (route && route.startsWith("/")) return route;
+    const pages = new Set<string>();
+
+    // Always have a home page
+    pages.add("/");
+
+    // Auth pages
+    if (hasAuth) {
+      pages.add("/login");
+      pages.add("/register");
+    }
+
+    // Entity list/detail pages
+    for (const entity of entities) {
+      const slug = toCamelCase(entity.name).toLowerCase();
+      pages.add(`/${slug}`);
+      pages.add(`/${slug}/new`);
+    }
+
+    // Dashboard page if there are entities
+    if (entities.length > 0) {
+      pages.add("/dashboard");
+    }
+
+    // Explicit routes from frontend nodes
+    for (const n of frontendNodes) {
+      const route = n.data.route;
+      if (route && route.startsWith("/")) {
+        pages.add(route);
+      } else {
         const label = toCamelCase(n.data.label);
-        return `/${label}`;
-      })
-      .filter(Boolean);
+        pages.add(`/${label}`);
+      }
+    }
 
     return {
       framework: primary?.data.framework ?? "NEXTJS",
       styling: primary?.data.styling ?? "TAILWIND",
       features,
-      pages: pages.length > 0 ? pages : ["/"],
+      pages: Array.from(pages),
     };
   }
 
