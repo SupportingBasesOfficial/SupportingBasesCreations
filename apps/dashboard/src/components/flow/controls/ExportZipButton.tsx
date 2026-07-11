@@ -20,20 +20,38 @@ export function ExportZipButton() {
         return;
       }
 
-      const config = toProjectConfig("exported-project");
-      const json = JSON.stringify(config, null, 2);
+      const projectId =
+        typeof window !== "undefined"
+          ? new URLSearchParams(window.location.search).get("project")
+          : null;
+      const config = toProjectConfig(projectId ?? "exported-project");
 
-      const blob = new Blob([json], { type: "application/json" });
+      const res = await fetch("/api/export-zip", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          config,
+          projectName: projectId ?? "exported-project",
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.error ?? "Falha ao gerar ZIP");
+        return;
+      }
+
+      const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "project-config.json";
+      a.download = `${projectId ?? "exported-project"}.zip`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      toast.success("Configuração do projeto exportada");
+      toast.success("Projeto exportado como ZIP");
     } catch {
       toast.error("Falha ao exportar projeto");
     } finally {
@@ -52,7 +70,7 @@ export function ExportZipButton() {
       ) : (
         <Download size={16} />
       )}
-      Exportar JSON
+      Exportar ZIP
     </button>
   );
 }

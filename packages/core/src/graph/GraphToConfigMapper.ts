@@ -209,7 +209,18 @@ export class GraphToConfigMapper {
         return target?.type === NodeType.QUEUE_SERVICE;
       });
 
-    const serviceType = connectedToQueue ? "ASYNC" : "SYNC";
+    const label = node.data.label.toLowerCase();
+    const isBatch = /cron|batch|schedule|job|worker/.test(label);
+    const isStreaming =
+      connectedToQueue && /stream|consumer|kafka|subscriber/.test(label);
+
+    const serviceType = isBatch
+      ? "BATCH"
+      : isStreaming
+        ? "STREAMING"
+        : connectedToQueue
+          ? "ASYNC"
+          : "SYNC";
 
     return {
       name: toCamelCase(node.data.label),
@@ -348,6 +359,6 @@ export class GraphToConfigMapper {
   private determineArchitecture(apiNodes: GraphNode[]): string {
     if (apiNodes.length > 3) return "MICROSERVICES";
     if (apiNodes.length > 1) return "MODULAR_MONOLITH";
-    return "MODULAR_MONOLITH";
+    return "MONOLITH";
   }
 }

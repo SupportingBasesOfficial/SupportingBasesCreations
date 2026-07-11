@@ -5,6 +5,8 @@ export interface DeployResult {
   supabaseUrl?: string;
   supabaseProjectRef?: string;
   supabaseAnonKey?: string;
+  databaseUrl?: string;
+  dbPassword?: string;
   error?: string;
   step?: DeployStep;
 }

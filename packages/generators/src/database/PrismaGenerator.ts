@@ -6,6 +6,7 @@ import {
   ArchitectureType,
   FieldType,
   RelationType,
+  DatabaseType,
 } from "@sbc/core";
 import type { Generator, GenerationContext } from "@sbc/core";
 import type { GeneratedArtifact } from "@sbc/shared";
@@ -42,33 +43,78 @@ export class PrismaGenerator implements Generator {
     return artifacts;
   }
 
+  private getPrismaProvider(db: DatabaseType): string {
+    switch (db) {
+      case DatabaseType.MYSQL:
+        return "mysql";
+      case DatabaseType.MONGODB:
+        return "mongodb";
+      case DatabaseType.SQLITE:
+        return "sqlite";
+      case DatabaseType.COCKROACHDB:
+        return "cockroachdb";
+      case DatabaseType.DYNAMODB:
+        return "postgresql"; // Prisma doesn't support DynamoDB natively, fallback
+      case DatabaseType.POSTGRESQL:
+      default:
+        return "postgresql";
+    }
+  }
+
   private generatePrismaSchema(project: Project): string {
+    const dbType =
+      project.options.infrastructure.database ?? DatabaseType.POSTGRESQL;
+    const provider = this.getPrismaProvider(dbType);
     const lines: string[] = [
       "generator client {",
       '  provider = "prisma-client-js"',
       "}",
       "",
       "datasource db {",
-      '  provider = "postgresql"',
+      `  provider = "${provider}"`,
       '  url      = env("DATABASE_URL")',
       "}",
       "",
     ];
 
     for (const entity of project.options.entities) {
-      lines.push(...this.generateModel(entity));
+      lines.push(...this.generateModel(entity, project));
+      lines.push("");
+    }
+
+    if (project.hasFeature(FeatureFlag.AUDIT_LOG)) {
+      lines.push(...this.generateEventModel());
       lines.push("");
     }
 
     return lines.join("\n");
   }
 
-  private generateModel(entity: Entity): string[] {
+  private generateModel(entity: Entity, project: Project): string[] {
     const lines: string[] = [`model ${entity.name} {`];
 
+    const isAuthEntity =
+      entity.hasFeature(FeatureFlag.AUTH) ||
+      (entity.name === "User" && project.hasFeature(FeatureFlag.AUTH));
+
+    const fieldNames = new Set(entity.fields.map((f) => f.name));
+
     for (const field of entity.fields) {
-      const prismaField = this.mapFieldToPrisma(field);
+      let prismaField = this.mapFieldToPrisma(field);
+      if (isAuthEntity && field.name === "email" && !field.options.unique) {
+        prismaField = prismaField.replace(" @unique", "");
+        prismaField += " @unique";
+      }
       lines.push(`  ${prismaField}`);
+    }
+
+    if (isAuthEntity) {
+      if (!fieldNames.has("password")) {
+        lines.push("  password String?");
+      }
+      if (!fieldNames.has("role")) {
+        lines.push('  role String @default("user")');
+      }
     }
 
     if (entity.hasFeature(FeatureFlag.SOFT_DELETE)) {
@@ -99,7 +145,7 @@ export class PrismaGenerator implements Generator {
     }
 
     lines.push(
-      `  @@map("${entity.options.tableName ?? entity.name.toLowerCase()}s")`,
+      `  @@map("${entity.options.tableName ?? entity.name.toLowerCase()}")`,
     );
 
     lines.push("}");
@@ -127,6 +173,9 @@ export class PrismaGenerator implements Generator {
         break;
       case FieldType.DECIMAL:
         parts.push("Decimal");
+        break;
+      case FieldType.FLOAT:
+        parts.push("Float");
         break;
       case FieldType.BOOLEAN:
         parts.push("Boolean");
@@ -172,6 +221,22 @@ export class PrismaGenerator implements Generator {
     }
 
     return parts.join(" ");
+  }
+
+  private generateEventModel(): string[] {
+    return [
+      "model Event {",
+      "  id           String   @id @default(uuid())",
+      "  type         String",
+      "  aggregateId  String",
+      "  aggregateType String",
+      "  payload      Json",
+      "  timestamp    DateTime @default(now())",
+      "  version      Int      @default(1)",
+      "  @@index([aggregateId])",
+      '  @@map("events")',
+      "}",
+    ];
   }
 
   private generateRelation(field: Field): string[] {

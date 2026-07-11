@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { GraphNode, GraphEdge } from "@sbc/shared";
 import { createServerSupabaseClient } from "../../../lib/supabase-server";
+import { checkRateLimit, rateLimitResponse } from "../../../lib/rateLimit";
 
 export const maxDuration = 60;
 export const runtime = "nodejs";
@@ -143,7 +144,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    const { prompt } = (await request.json()) as { prompt: string };
+    const rl = await checkRateLimit("ai-copilot", user.id, 10, 60);
+    if (!rl.allowed) {
+      return rateLimitResponse("ai-copilot", 10, 60);
+    }
+
+    const { prompt, history, stream } = (await request.json()) as {
+      prompt: string;
+      history?: { role: "user" | "assistant"; content: string }[];
+      stream?: boolean;
+    };
 
     if (!prompt || prompt.trim().length < 3) {
       return NextResponse.json(
@@ -163,6 +173,104 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const conversationMessages = [
+      { role: "system", content: SYSTEM_PROMPT },
+      ...(history ?? []).map((h) => ({
+        role: h.role,
+        content: h.content,
+      })),
+      { role: "user", content: prompt },
+    ];
+
+    const useStreaming = stream === true;
+
+    if (useStreaming) {
+      const streamResponse = await fetch(
+        "https://api.groq.com/openai/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: "llama-3.3-70b-versatile",
+            messages: conversationMessages,
+            temperature: 0.7,
+            response_format: { type: "json_object" },
+            max_tokens: 4000,
+            stream: true,
+          }),
+        },
+      );
+
+      if (!streamResponse.ok) {
+        const errText = await streamResponse.text();
+        return NextResponse.json(
+          {
+            error: `Erro do serviço de IA: ${streamResponse.status} ${errText}`,
+          },
+          { status: 502 },
+        );
+      }
+
+      const encoder = new TextEncoder();
+      const readable = new ReadableStream({
+        async start(controller) {
+          const reader = streamResponse.body!.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+
+          try {
+            let reading = true;
+            while (reading) {
+              const { done, value } = await reader.read();
+              if (done) {
+                reading = false;
+                break;
+              }
+
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split("\n");
+              buffer = lines.pop() ?? "";
+
+              for (const line of lines) {
+                if (!line.startsWith("data: ")) continue;
+                const data = line.slice(6).trim();
+                if (data === "[DONE]") {
+                  controller.close();
+                  return;
+                }
+                try {
+                  const json = JSON.parse(data);
+                  const delta = json.choices?.[0]?.delta?.content;
+                  if (delta) {
+                    controller.enqueue(
+                      encoder.encode(
+                        `data: ${JSON.stringify({ chunk: delta })}\n\n`,
+                      ),
+                    );
+                  }
+                } catch {
+                  // skip malformed chunks
+                }
+              }
+            }
+          } catch (err) {
+            controller.error(err);
+          }
+        },
+      });
+
+      return new Response(readable, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
+        },
+      });
+    }
+
     const response = await fetch(
       "https://api.groq.com/openai/v1/chat/completions",
       {
@@ -173,10 +281,7 @@ export async function POST(request: NextRequest) {
         },
         body: JSON.stringify({
           model: "llama-3.3-70b-versatile",
-          messages: [
-            { role: "system", content: SYSTEM_PROMPT },
-            { role: "user", content: prompt },
-          ],
+          messages: conversationMessages,
           temperature: 0.7,
           response_format: { type: "json_object" },
           max_tokens: 4000,

@@ -95,7 +95,7 @@ export async function GET(
       httpOnly: false,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      maxAge: 3600,
+      maxAge: 60 * 60 * 24 * 30,
       path: "/",
     });
     response.cookies.delete("sbc-oauth-state");

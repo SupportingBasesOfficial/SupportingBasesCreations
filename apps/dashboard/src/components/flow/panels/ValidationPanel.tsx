@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useGraphStore } from "../../../store/graphStore";
 import {
   AlertCircle,
@@ -16,6 +16,10 @@ export function ValidationPanel() {
   const [expanded, setExpanded] = useState(false);
 
   const errorCount = errors.length;
+
+  useEffect(() => {
+    if (errorCount === 0) setExpanded(false);
+  }, [errorCount]);
 
   return (
     <div className="absolute bottom-4 left-4 z-10 w-80 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900">

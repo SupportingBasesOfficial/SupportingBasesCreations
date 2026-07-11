@@ -40,7 +40,8 @@ export function DeployButton({
   const isValid = useGraphStore((s) => s.isValid);
   const nodeCount = useGraphStore((s) => s.nodes.length);
   const cloudConfig = useDeployStore((s) => s.cloudConfig);
-  const { deploy, isDeploying, progress, result, deployId } = useCloudDeploy();
+  const { deploy, isDeploying, progress, result, deployId, reset } =
+    useCloudDeploy();
 
   const openModal = () => {
     setShowModal(true);
@@ -48,8 +49,8 @@ export function DeployButton({
 
   const handleDeploy = async () => {
     const res = await deploy(projectName);
-    if (res.success && deployId) {
-      onDeployStart?.(deployId);
+    if (!res.success) {
+      onDeployStart?.("");
     }
   };
 
@@ -275,7 +276,10 @@ export function DeployButton({
                   </div>
                 )}
                 <button
-                  onClick={() => setShowModal(false)}
+                  onClick={() => {
+                    reset();
+                    setShowModal(false);
+                  }}
                   className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
                 >
                   Fechar
@@ -283,6 +287,7 @@ export function DeployButton({
                 {result.success && (
                   <button
                     onClick={() => {
+                      reset();
                       handleDeploy();
                     }}
                     className="w-full rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition-all hover:from-blue-700 hover:to-indigo-700"

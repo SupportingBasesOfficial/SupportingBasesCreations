@@ -3,12 +3,14 @@ import { Compass } from "lucide-react";
 
 export default function NotFound() {
   return (
-    <div className="flex h-screen flex-col items-center justify-center gap-4 bg-gray-50 p-8">
-      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
+    <div className="flex h-screen flex-col items-center justify-center gap-4 bg-gray-50 p-8 dark:bg-gray-950">
+      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
         <Compass size={32} className="text-blue-600" />
       </div>
-      <h1 className="text-2xl font-bold text-gray-800">404 — Page Not Found</h1>
-      <p className="max-w-md text-center text-sm text-gray-500">
+      <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">
+        404 — Page Not Found
+      </h1>
+      <p className="max-w-md text-center text-sm text-gray-500 dark:text-gray-400">
         The page you are looking for doesn&apos;t exist or has been moved.
       </p>
       <Link

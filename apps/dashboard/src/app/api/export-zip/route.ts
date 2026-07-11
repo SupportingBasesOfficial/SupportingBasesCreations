@@ -24,15 +24,17 @@ import {
   TRPCGenerator,
   NextJSGenerator,
   AuthGenerator,
+  BillingGenerator,
   DockerGenerator,
   EnvGenerator,
   GitHubActionsGenerator,
   DocsGenerator,
-  BillingGenerator,
 } from "@sbc/generators";
 import type { ProjectConfig } from "@sbc/shared";
 import { createServerSupabaseClient } from "../../../lib/supabase-server";
 import { checkRateLimit, rateLimitResponse } from "../../../lib/rateLimit";
+import { ZipArchive } from "archiver";
+import { PassThrough } from "node:stream";
 
 export const maxDuration = 60;
 export const runtime = "nodejs";
@@ -48,9 +50,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
-    const rl = await checkRateLimit("code-preview", user.id, 15, 60);
+    const rl = await checkRateLimit("export-zip", user.id, 10, 60);
     if (!rl.allowed) {
-      return rateLimitResponse("code-preview", 15, 60);
+      return rateLimitResponse("export-zip", 10, 60);
     }
 
     const { config, projectName } = (await request.json()) as {
@@ -148,96 +150,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const files = result.artifacts.map((a) => ({
-      path: a.path,
-      content: a.content,
-      language: a.language,
-    }));
+    const archive = new ZipArchive({ zlib: { level: 9 } });
+    const passthrough = new PassThrough();
 
-    const fileTree = buildFileTree(files);
+    archive.pipe(passthrough);
 
-    return NextResponse.json({
-      files,
-      fileTree,
-      totalFiles: files.length,
-      totalLines: files.reduce(
-        (sum, f) => sum + f.content.split("\n").length,
-        0,
-      ),
+    for (const artifact of result.artifacts) {
+      archive.append(artifact.content, { name: artifact.path });
+    }
+
+    archive.finalize();
+
+    const chunks: Buffer[] = [];
+    for await (const chunk of passthrough) {
+      chunks.push(chunk as Buffer);
+    }
+    const zipBuffer = Buffer.concat(chunks);
+
+    return new NextResponse(zipBuffer, {
+      headers: {
+        "Content-Type": "application/zip",
+        "Content-Disposition": `attachment; filename="${projectName}.zip"`,
+      },
     });
   } catch (error) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "Falha ao gerar pré-visualização",
+          error instanceof Error ? error.message : "Falha ao exportar projeto",
       },
       { status: 500 },
     );
   }
-}
-
-interface FileEntry {
-  path: string;
-  content: string;
-  language: string;
-}
-
-interface TreeNode {
-  name: string;
-  path: string;
-  type: "file" | "directory";
-  children?: TreeNode[];
-  language?: string;
-}
-
-function buildFileTree(files: FileEntry[]): TreeNode[] {
-  const root: TreeNode = {
-    name: "root",
-    path: "",
-    type: "directory",
-    children: [],
-  };
-
-  for (const file of files) {
-    const parts = file.path.split("/");
-    let current = root;
-
-    for (let i = 0; i < parts.length; i++) {
-      const part = parts[i];
-      const isLast = i === parts.length - 1;
-      const fullPath = parts.slice(0, i + 1).join("/");
-
-      if (isLast) {
-        current.children?.push({
-          name: part,
-          path: fullPath,
-          type: "file",
-          language: file.language,
-        });
-      } else {
-        let dir = current.children?.find(
-          (c) => c.type === "directory" && c.name === part,
-        );
-        if (!dir) {
-          dir = { name: part, path: fullPath, type: "directory", children: [] };
-          current.children?.push(dir);
-        }
-        current = dir;
-      }
-    }
-  }
-
-  sortTree(root);
-  return root.children ?? [];
-}
-
-function sortTree(node: TreeNode) {
-  if (!node.children) return;
-  node.children.sort((a, b) => {
-    if (a.type !== b.type) return a.type === "directory" ? -1 : 1;
-    return a.name.localeCompare(b.name);
-  });
-  node.children.forEach(sortTree);
 }

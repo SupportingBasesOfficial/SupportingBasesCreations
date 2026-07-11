@@ -26,14 +26,20 @@ export function useOAuthCallback() {
       return match ? decodeURIComponent(match[1]) : null;
     }
 
+    function cleanOAuthParams() {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("oauth_success");
+      url.searchParams.delete("oauth_error");
+      window.history.replaceState({}, "", url.toString());
+    }
+
     async function handleOAuthSuccess() {
       if (!success) return;
       const provider = success as "github" | "vercel" | "supabase";
       const token = getCookie(`sbc-token-${provider}`);
       if (!token) {
         setOauthStatus({ provider, success: false, error: "token_not_found" });
-        const cleanUrl = window.location.pathname;
-        window.history.replaceState({}, "", cleanUrl);
+        cleanOAuthParams();
         return;
       }
       setOauthStatus({ provider, success: true });
@@ -74,8 +80,7 @@ export function useOAuthCallback() {
         // offline — will sync later
       }
 
-      const cleanUrl = window.location.pathname;
-      window.history.replaceState({}, "", cleanUrl);
+      cleanOAuthParams();
     }
 
     if (success) {
@@ -84,8 +89,7 @@ export function useOAuthCallback() {
 
     if (error) {
       setOauthStatus({ provider: "", success: false, error });
-      const cleanUrl = window.location.pathname;
-      window.history.replaceState({}, "", cleanUrl);
+      cleanOAuthParams();
     }
   }, [setCloudConfig]);
 

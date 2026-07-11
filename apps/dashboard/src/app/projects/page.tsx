@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import {
   Plus,
@@ -34,6 +34,12 @@ export default function ProjectsPage() {
   const [showNew, setShowNew] = useState(false);
   const [search, setSearch] = useState("");
   const toast = useToast();
+
+  const filteredProjects = useMemo(() => {
+    if (!search.trim()) return projects;
+    const q = search.toLowerCase();
+    return projects.filter((p) => p.name.toLowerCase().includes(q));
+  }, [projects, search]);
 
   const loadProjects = () => {
     fetch("/api/projects")
@@ -79,12 +85,16 @@ export default function ProjectsPage() {
 
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Excluir "${name}"? Isso não pode ser desfeito.`)) return;
-    const res = await fetch(`/api/projects/${id}`, { method: "DELETE" });
-    if (res.ok) {
-      toast.success("Projeto excluído");
-      loadProjects();
-    } else {
-      toast.error("Falha ao excluir projeto");
+    try {
+      const res = await fetch(`/api/projects/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        toast.success("Projeto excluído");
+        loadProjects();
+      } else {
+        toast.error("Falha ao excluir projeto");
+      }
+    } catch {
+      toast.error("Erro de conexão ao excluir projeto");
     }
   };
 
@@ -203,63 +213,57 @@ export default function ProjectsPage() {
               />
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              {projects
-                .filter((p) =>
-                  p.name.toLowerCase().includes(search.toLowerCase()),
-                )
-                .map((project) => {
-                  const nodeCount = project.graph_data?.nodes?.length ?? 0;
-                  return (
-                    <div
-                      key={project.id}
-                      className="group rounded-lg border border-gray-200 bg-white p-4 transition-all hover:shadow-md dark:border-gray-700 dark:bg-gray-800"
+              {filteredProjects.map((project) => {
+                const nodeCount = project.graph_data?.nodes?.length ?? 0;
+                return (
+                  <div
+                    key={project.id}
+                    className="group rounded-lg border border-gray-200 bg-white p-4 transition-all hover:shadow-md dark:border-gray-700 dark:bg-gray-800"
+                  >
+                    <Link
+                      href={`/dashboard?project=${project.id}`}
+                      className="block"
                     >
+                      <h3 className="font-medium text-gray-800 dark:text-gray-100">
+                        {project.name}
+                      </h3>
+                      {project.description && (
+                        <p className="mt-1 line-clamp-2 text-xs text-gray-500 dark:text-gray-400">
+                          {project.description}
+                        </p>
+                      )}
+                      <div className="mt-3 flex items-center gap-3 text-xs text-gray-400 dark:text-gray-500">
+                        <span className="flex items-center gap-1">
+                          <Boxes size={12} />
+                          {nodeCount} bloco{nodeCount !== 1 ? "s" : ""}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Calendar size={12} />
+                          {new Date(project.updated_at).toLocaleDateString(
+                            "pt-BR",
+                          )}
+                        </span>
+                      </div>
+                    </Link>
+                    <div className="mt-3 flex items-center justify-between">
                       <Link
                         href={`/dashboard?project=${project.id}`}
-                        className="block"
+                        className="text-xs font-medium text-blue-600 hover:underline"
                       >
-                        <h3 className="font-medium text-gray-800 dark:text-gray-100">
-                          {project.name}
-                        </h3>
-                        {project.description && (
-                          <p className="mt-1 line-clamp-2 text-xs text-gray-500 dark:text-gray-400">
-                            {project.description}
-                          </p>
-                        )}
-                        <div className="mt-3 flex items-center gap-3 text-xs text-gray-400 dark:text-gray-500">
-                          <span className="flex items-center gap-1">
-                            <Boxes size={12} />
-                            {nodeCount} bloco{nodeCount !== 1 ? "s" : ""}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Calendar size={12} />
-                            {new Date(project.updated_at).toLocaleDateString(
-                              "pt-BR",
-                            )}
-                          </span>
-                        </div>
+                        Abrir →
                       </Link>
-                      <div className="mt-3 flex items-center justify-between">
-                        <Link
-                          href={`/dashboard?project=${project.id}`}
-                          className="text-xs font-medium text-blue-600 hover:underline"
-                        >
-                          Abrir →
-                        </Link>
-                        <button
-                          onClick={() => handleDelete(project.id, project.name)}
-                          className="text-gray-400 opacity-0 transition-opacity hover:text-red-500 group-hover:opacity-100"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => handleDelete(project.id, project.name)}
+                        className="text-gray-400 opacity-0 transition-opacity hover:text-red-500 group-hover:opacity-100"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
-                  );
-                })}
+                  </div>
+                );
+              })}
             </div>
-            {projects.filter((p) =>
-              p.name.toLowerCase().includes(search.toLowerCase()),
-            ).length === 0 && (
+            {filteredProjects.length === 0 && (
               <p className="py-8 text-center text-sm text-gray-400">
                 Nenhum projeto encontrado para "{search}"
               </p>

@@ -1,5 +1,5 @@
 const CACHE_NAME = "sbc-dashboard-v1";
-const STATIC_ASSETS = ["/", "/manifest.json"];
+const STATIC_ASSETS = ["/", "/manifest.json", "/offline.html"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -52,7 +52,12 @@ self.addEventListener("fetch", (event) => {
           }
           return response;
         })
-        .catch(() => cached);
+        .catch(() => {
+          if (request.mode === "navigate") {
+            return caches.match("/offline.html");
+          }
+          return cached;
+        });
       return cached || fetchPromise;
     }),
   );

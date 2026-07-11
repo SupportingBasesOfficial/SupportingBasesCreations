@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { UpstashRedisKV } from "@sbc/core";
+import { createServerSupabaseClient } from "../../../lib/supabase-server";
 
 export const runtime = "nodejs";
 
@@ -11,6 +12,15 @@ function getKV(): UpstashRedisKV | null {
 }
 
 export async function GET(request: NextRequest) {
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const deployId = request.nextUrl.searchParams.get("deployId");
 
   if (!deployId) {
@@ -35,7 +45,9 @@ export async function GET(request: NextRequest) {
         const logs = await kv.lrange(logKey, lastOffset, -1);
         if (logs && logs.length > 0) {
           for (const log of logs) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ log })}\n\n`));
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify({ log })}\n\n`),
+            );
           }
           lastOffset += logs.length;
         }
@@ -46,14 +58,22 @@ export async function GET(request: NextRequest) {
       const status = await kv.get(`deploy-status:${deployId}`);
       if (status === "complete" || status === "failed") {
         controller.enqueue(
-          encoder.encode(
-            `data: ${JSON.stringify({ done: true, status })}\n\n`,
-          ),
+          encoder.encode(`data: ${JSON.stringify({ done: true, status })}\n\n`),
         );
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         controller.close();
         return;
       }
+
+      let closed = false;
+
+      const closeStream = () => {
+        if (closed) return;
+        closed = true;
+        clearInterval(interval);
+        clearTimeout(timeout);
+        controller.close();
+      };
 
       const interval = setInterval(async () => {
         await sendLogs();
@@ -66,14 +86,12 @@ export async function GET(request: NextRequest) {
             ),
           );
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-          controller.close();
-          clearInterval(interval);
+          closeStream();
         }
       }, 2000);
 
-      setTimeout(() => {
-        clearInterval(interval);
-        controller.close();
+      const timeout = setTimeout(() => {
+        closeStream();
       }, 120000);
     },
   });
@@ -88,6 +106,15 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const kv = getKV();
   if (!kv) {
     return NextResponse.json(

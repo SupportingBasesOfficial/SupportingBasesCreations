@@ -52,14 +52,14 @@ function getPageLabel(page: string, entities: { name: string }[]) {
   if (page === "/register") return "Registrar";
   if (page === "/dashboard") return "Painel";
   if (page.endsWith("/new")) {
-    const entity = page.replace("/new", "").replace("/", "");
-    return `Novo ${entity}`;
+    const slug = page.replace("/new", "").replace("/", "");
+    const entity = entities.find((e) => slugToName(e.name) === slug);
+    return entity ? `Novo ${entity.name}` : `Novo ${slug}`;
   }
-  const entity = entities.find(
-    (e) => e.name.toLowerCase() === page.replace("/", "").toLowerCase(),
-  );
+  const slug = page.replace("/", "");
+  const entity = entities.find((e) => slugToName(e.name) === slug);
   if (entity) return `${entity.name}s`;
-  return page.replace("/", "").replace(/-/g, " ");
+  return slug.replace(/-/g, " ");
 }
 
 export function LivePreview() {
@@ -76,10 +76,14 @@ export function LivePreview() {
     return () => window.removeEventListener("sbc-open-live-preview", handler);
   }, []);
 
-  const config = useMemo<ProjectConfig | null>(
-    () => (nodeCount > 0 ? toProjectConfig("preview") : null),
-    [nodes, edges, nodeCount, toProjectConfig],
-  );
+  const config = useMemo<ProjectConfig | null>(() => {
+    if (nodeCount === 0) return null;
+    const projectId =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("project")
+        : null;
+    return toProjectConfig(projectId ?? "preview");
+  }, [nodes, edges, nodeCount, toProjectConfig]);
 
   const entities = config?.entities ?? [];
   const services = config?.services ?? [];
@@ -93,6 +97,12 @@ export function LivePreview() {
   const description = config?.description ?? "";
 
   const activePage = selectedPage ?? pages[0] ?? "/";
+
+  useEffect(() => {
+    if (selectedPage && !pages.includes(selectedPage)) {
+      setSelectedPage(null);
+    }
+  }, [pages, selectedPage]);
 
   return (
     <>
@@ -111,7 +121,7 @@ export function LivePreview() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-0 z-30 flex h-full w-[480px] flex-col border-l border-gray-200 bg-white shadow-2xl dark:border-gray-800 dark:bg-gray-950">
+        <div className="fixed right-0 top-0 z-50 flex h-screen w-[480px] flex-col border-l border-gray-200 bg-white shadow-2xl dark:border-gray-800 dark:bg-gray-950">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-gray-200 px-4 py-2.5 dark:border-gray-800">
             <div className="flex items-center gap-2">
@@ -272,16 +282,14 @@ function PageRenderer({
   // Entity "new" form
   if (page.endsWith("/new")) {
     const entitySlug = page.replace("/new", "").replace("/", "");
-    const entity = entities.find((e) => e.name.toLowerCase() === entitySlug);
+    const entity = entities.find((e) => slugToName(e.name) === entitySlug);
     if (entity)
       return <EntityFormPage entity={entity} onNavigate={onNavigate} />;
   }
 
   // Entity list page
   const matchingEntity = entities.find(
-    (e) =>
-      e.name.toLowerCase() === page.replace("/", "").toLowerCase() ||
-      e.tableName?.toLowerCase() === page.replace("/", "").toLowerCase(),
+    (e) => slugToName(e.name) === page.replace("/", ""),
   );
   if (matchingEntity) {
     return <EntityListPage entity={matchingEntity} onNavigate={onNavigate} />;
@@ -393,7 +401,7 @@ function LandingPage({
         </h2>
         <div className="grid grid-cols-2 gap-3">
           {entities.slice(0, 4).map((entity) => {
-            const slug = entity.name.toLowerCase();
+            const slug = slugToName(entity.name);
             const Icon = getEntityIcon(entity.name);
             return (
               <button
@@ -605,8 +613,8 @@ function DashboardPage({
         {/* Stats cards */}
         <div className="mb-4 grid grid-cols-2 gap-3">
           {entities.slice(0, 4).map((entity) => {
+            const slug = slugToName(entity.name);
             const Icon = getEntityIcon(entity.name);
-            const slug = entity.name.toLowerCase();
             return (
               <button
                 key={entity.name}
@@ -725,7 +733,7 @@ function EntityListPage({
           </span>
         </div>
         <button
-          onClick={() => onNavigate(`/${entity.name.toLowerCase()}/new`)}
+          onClick={() => onNavigate(`/${slugToName(entity.name)}/new`)}
           className="flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white"
         >
           <Plus size={12} />
@@ -778,7 +786,9 @@ function EntityListPage({
                       ) : (
                         <div
                           className="h-2.5 rounded bg-gray-100 dark:bg-gray-800"
-                          style={{ width: `${60 + Math.random() * 30}%` }}
+                          style={{
+                            width: `${65 + ((rowIdx * 7 + i * 13) % 25)}%`,
+                          }}
                         />
                       )}
                     </td>
@@ -798,7 +808,7 @@ function EntityListPage({
         {/* Pagination */}
         <div className="mt-3 flex items-center justify-between text-[10px] text-gray-400">
           <span>
-            5 de {Math.floor(Math.random() * 80) + 20}{" "}
+            5 de {20 + ((entity.name.length * 7) % 80)}{" "}
             {entity.name.toLowerCase()}s
           </span>
           <div className="flex gap-1">
@@ -837,7 +847,7 @@ function EntityFormPage({
     <div className="min-h-full bg-gray-50 dark:bg-gray-950">
       <div className="flex items-center gap-2 border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
         <button
-          onClick={() => onNavigate(`/${entity.name.toLowerCase()}`)}
+          onClick={() => onNavigate(`/${slugToName(entity.name)}`)}
           className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
         >
           <ChevronLeft size={14} />
@@ -872,7 +882,7 @@ function EntityFormPage({
               Salvar
             </button>
             <button
-              onClick={() => onNavigate(`/${entity.name.toLowerCase()}`)}
+              onClick={() => onNavigate(`/${slugToName(entity.name)}`)}
               className="rounded-lg border border-gray-200 px-4 py-2 text-xs font-medium text-gray-600 dark:border-gray-700 dark:text-gray-300"
             >
               Cancelar
@@ -885,6 +895,16 @@ function EntityFormPage({
 }
 
 /* ============ HELPERS ============ */
+function slugToName(name: string): string {
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+(.)/g, (_, ch) => ch.toUpperCase())
+    .replace(/^[A-Z]/, (ch) => ch.toLowerCase())
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .toLowerCase();
+}
+
 function getEntityIcon(
   name: string,
 ): React.ComponentType<{ size?: number; className?: string }> {

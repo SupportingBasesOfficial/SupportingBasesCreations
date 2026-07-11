@@ -41,13 +41,19 @@ export function CodePreview() {
     setLoading(true);
     setOpen(true);
     setSelectedFile(null);
+    setPreview(null);
 
     try {
-      const config = toProjectConfig("preview-project");
+      const projectId =
+        typeof window !== "undefined"
+          ? new URLSearchParams(window.location.search).get("project")
+          : null;
+      const projectName = projectId ?? "preview-project";
+      const config = toProjectConfig(projectName);
       const res = await fetch("/api/code-preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ config, projectName: "preview-project" }),
+        body: JSON.stringify({ config, projectName }),
       });
 
       const data = await res.json();

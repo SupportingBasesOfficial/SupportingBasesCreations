@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useCallback } from "react";
 import { useGraphStore } from "../store/graphStore";
 import type { GraphValidationError } from "@sbc/shared";
 
@@ -8,18 +8,12 @@ export function useGraphValidation() {
   const nodes = useGraphStore((s) => s.nodes);
   const edges = useGraphStore((s) => s.edges);
   const validate = useGraphStore((s) => s.validate);
-  const [errors, setErrors] = useState<GraphValidationError[]>([]);
-  const [isValid, setIsValid] = useState(true);
+  const errors = useGraphStore((s) => s.validationErrors);
+  const isValid = useGraphStore((s) => s.isValid);
 
   useEffect(() => {
     validate();
   }, [nodes, edges, validate]);
-
-  useEffect(() => {
-    const state = useGraphStore.getState();
-    setErrors(state.validationErrors);
-    setIsValid(state.isValid);
-  }, [nodes, edges]);
 
   const getErrorForNode = useCallback(
     (nodeId: string): GraphValidationError | undefined => {

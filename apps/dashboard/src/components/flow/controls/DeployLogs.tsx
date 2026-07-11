@@ -23,6 +23,8 @@ export function DeployLogs({ deployId, open, onClose }: DeployLogsProps) {
   const [connected, setConnected] = useState(false);
   const logEndRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const retryCountRef = useRef(0);
+  const maxRetries = 3;
 
   const addLog = useCallback(
     (message: string, level: DeployLogEntry["level"] = "info") => {
@@ -37,88 +39,122 @@ export function DeployLogs({ deployId, open, onClose }: DeployLogsProps) {
   useEffect(() => {
     if (!open || !deployId) return;
 
-    setLogs([]);
-    setStatus("streaming");
-    setConnected(false);
+    let cancelled = false;
 
-    addLog(`Conectando ao deploy ${deployId}...`, "info");
+    const connect = () => {
+      if (cancelled) return;
 
-    const es = new EventSource(`/api/deploy-logs?deployId=${deployId}`);
-    eventSourceRef.current = es;
+      setLogs([]);
+      setStatus("streaming");
+      setConnected(false);
+      retryCountRef.current = 0;
 
-    es.onopen = () => {
-      setConnected(true);
-      addLog("Conectado ao stream de logs", "success");
-    };
+      addLog(`Conectando ao deploy ${deployId}...`, "info");
 
-    es.onmessage = (event) => {
-      if (event.data === "[DONE]") {
-        es.close();
-        return;
-      }
+      const connectSSE = () => {
+        if (cancelled) return;
 
-      try {
-        const data = JSON.parse(event.data);
-        if (data.done) {
-          setStatus(data.status === "complete" ? "complete" : "failed");
-          if (data.status === "complete") {
-            addLog("Deploy concluído com sucesso!", "success");
-          } else {
-            addLog("Deploy falhou", "error");
+        const es = new EventSource(`/api/deploy-logs?deployId=${deployId}`);
+        eventSourceRef.current = es;
+
+        es.onopen = () => {
+          setConnected(true);
+          retryCountRef.current = 0;
+          addLog("Conectado ao stream de logs", "success");
+        };
+
+        es.onmessage = (event) => {
+          if (event.data === "[DONE]") {
+            es.close();
+            return;
           }
-          es.close();
-          return;
-        }
-        if (data.log) {
-          const rawLog = data.log;
-          let message = "";
-          let level: DeployLogEntry["level"] = "info";
 
           try {
-            const parsed =
-              typeof rawLog === "string" ? JSON.parse(rawLog) : rawLog;
-            if (parsed.type === "progress") {
-              message =
-                parsed.message ?? `${parsed.step}: ${parsed.percentage}%`;
-              level = parsed.step === "failed" ? "error" : "info";
-            } else if (parsed.type === "result") {
-              message = parsed.success
-                ? `Deploy succeeded — GitHub: ${parsed.githubUrl ?? "n/a"}, Vercel: ${parsed.vercelUrl ?? "n/a"}`
-                : `Deploy failed: ${parsed.error ?? "unknown"}`;
-              level = parsed.success ? "success" : "error";
-            } else if (parsed.type === "done") {
-              message = `Deploy ${parsed.status}`;
-              level = parsed.status === "complete" ? "success" : "error";
-            } else {
-              message =
-                typeof rawLog === "string" ? rawLog : JSON.stringify(parsed);
+            const data = JSON.parse(event.data);
+            if (data.done) {
+              setStatus(data.status === "complete" ? "complete" : "failed");
+              if (data.status === "complete") {
+                addLog("Deploy concluído com sucesso!", "success");
+              } else {
+                addLog("Deploy falhou", "error");
+              }
+              es.close();
+              return;
+            }
+            if (data.log) {
+              const rawLog = data.log;
+              let message = "";
+              let level: DeployLogEntry["level"] = "info";
+
+              try {
+                const parsed =
+                  typeof rawLog === "string" ? JSON.parse(rawLog) : rawLog;
+                if (parsed.type === "progress") {
+                  message =
+                    parsed.message ?? `${parsed.step}: ${parsed.percentage}%`;
+                  level = parsed.step === "failed" ? "error" : "info";
+                } else if (parsed.type === "result") {
+                  message = parsed.success
+                    ? `Deploy succeeded — GitHub: ${parsed.githubUrl ?? "n/a"}, Vercel: ${parsed.vercelUrl ?? "n/a"}`
+                    : `Deploy failed: ${parsed.error ?? "unknown"}`;
+                  level = parsed.success ? "success" : "error";
+                } else if (parsed.type === "done") {
+                  message = `Deploy ${parsed.status}`;
+                  level = parsed.status === "complete" ? "success" : "error";
+                } else {
+                  message =
+                    typeof rawLog === "string"
+                      ? rawLog
+                      : JSON.stringify(parsed);
+                }
+              } catch {
+                message = typeof rawLog === "string" ? rawLog : String(rawLog);
+              }
+
+              if (!message) message = String(rawLog);
+
+              if (level === "info" && /error|fail/i.test(message))
+                level = "error";
+              else if (level === "info" && /warn/i.test(message))
+                level = "warn";
+              else if (level === "info" && /success|complete/i.test(message))
+                level = "success";
+
+              addLog(message, level);
             }
           } catch {
-            message = typeof rawLog === "string" ? rawLog : String(rawLog);
+            // ignore parse errors
           }
+        };
 
-          if (!message) message = String(rawLog);
+        es.onerror = () => {
+          setConnected(false);
+          es.close();
 
-          if (level === "info" && /error|fail/i.test(message)) level = "error";
-          else if (level === "info" && /warn/i.test(message)) level = "warn";
-          else if (level === "info" && /success|complete/i.test(message))
-            level = "success";
+          if (cancelled) return;
 
-          addLog(message, level);
-        }
-      } catch {
-        // ignore parse errors
-      }
+          if (retryCountRef.current < maxRetries) {
+            retryCountRef.current++;
+            const delay = Math.min(1000 * 2 ** retryCountRef.current, 8000);
+            addLog(
+              `Reconectando (${retryCountRef.current}/${maxRetries}) em ${delay / 1000}s...`,
+              "warn",
+            );
+            setTimeout(connectSSE, delay);
+          } else {
+            addLog("Conexão com o stream de logs perdida", "error");
+          }
+        };
+      };
+
+      connectSSE();
     };
 
-    es.onerror = () => {
-      setConnected(false);
-      addLog("Conexão com o stream de logs perdida", "error");
-      es.close();
-    };
+    connect();
 
     return () => {
-      es.close();
+      cancelled = true;
+      eventSourceRef.current?.close();
       eventSourceRef.current = null;
     };
   }, [open, deployId, addLog]);
@@ -185,7 +221,7 @@ export function DeployLogs({ deployId, open, onClose }: DeployLogsProps) {
             </div>
           ) : (
             logs.map((log, i) => (
-              <div key={i} className="flex gap-2 py-0.5">
+              <div key={`${log.timestamp}-${i}`} className="flex gap-2 py-0.5">
                 <span className="shrink-0 text-gray-600">{log.timestamp}</span>
                 <span className={levelColors[log.level]}>{log.message}</span>
               </div>

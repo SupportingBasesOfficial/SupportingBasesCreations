@@ -2,17 +2,19 @@
 
 import { useState } from "react";
 import { Share2, Copy, Check, Lock } from "lucide-react";
-import { nanoid } from "nanoid";
+import { useCollaborationContext } from "./CollaborationContext";
 
 export function ShareDialog() {
+  const collab = useCollaborationContext();
   const [open, setOpen] = useState(false);
-  const [roomId] = useState(() => nanoid(10));
   const [password, setPassword] = useState("");
   const [copied, setCopied] = useState(false);
 
+  const roomId = collab?.provider?.roomId ?? "";
+
   const shareUrl =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/dashboard?room=${roomId}${password ? `&pwd=${password}` : ""}`
+    typeof window !== "undefined" && roomId
+      ? `${window.location.origin}/dashboard?room=${roomId}${password ? `#pwd=${encodeURIComponent(password)}` : ""}`
       : "";
 
   const handleCopy = () => {

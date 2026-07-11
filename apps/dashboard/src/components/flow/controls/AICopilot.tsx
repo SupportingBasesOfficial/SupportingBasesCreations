@@ -17,9 +17,11 @@ export function AICopilot() {
   const [open, setOpen] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
+  const [conversations, setConversations] = useState<
+    { role: "user" | "assistant"; content: string; timestamp: number }[]
+  >([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const loadGraph = useGraphStore((s) => s.loadGraph);
-  const addNode = useGraphStore((s) => s.addNode);
   const nodes = useGraphStore((s) => s.nodes);
   const toast = useToast();
 
@@ -35,43 +37,149 @@ export function AICopilot() {
     return () => window.removeEventListener("sbc-open-ai-copilot", handler);
   }, []);
 
+  const [streamingProgress, setStreamingProgress] = useState("");
+
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
     setLoading(true);
+    setStreamingProgress("");
+
+    const userMessage = prompt.trim();
+    const history = conversations.map((c) => ({
+      role: c.role,
+      content: c.content,
+    }));
 
     try {
       const res = await fetch("/api/ai-copilot", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt: userMessage, history, stream: true }),
       });
 
-      const data = await res.json();
-
       if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
         toast.error(data.error ?? "Falha na geração pela IA");
         return;
       }
 
-      const { nodes: aiNodes, edges: aiEdges } = data as {
+      const contentType = res.headers.get("content-type") ?? "";
+
+      let fullContent = "";
+
+      if (contentType.includes("text/event-stream")) {
+        const reader = res.body!.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        let reading = true;
+        while (reading) {
+          const { done, value } = await reader.read();
+          if (done) {
+            reading = false;
+            break;
+          }
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n\n");
+          buffer = lines.pop() ?? "";
+
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.chunk) {
+                fullContent += data.chunk;
+                setStreamingProgress(
+                  fullContent.length > 60
+                    ? fullContent.slice(0, 60) + "..."
+                    : fullContent,
+                );
+              }
+            } catch {
+              // skip
+            }
+          }
+        }
+      } else {
+        const data = await res.json();
+        if (!res.ok) {
+          toast.error(data.error ?? "Falha na geração pela IA");
+          return;
+        }
+        fullContent = JSON.stringify(data);
+      }
+
+      let parsed: {
         nodes: GraphNode[];
         edges: GraphEdge[];
-        explanation: string;
+        explanation?: string;
       };
+      try {
+        parsed = JSON.parse(fullContent);
+      } catch {
+        toast.error("Resposta inválida da IA");
+        return;
+      }
+
+      const { nodes: aiNodes, edges: aiEdges, explanation } = parsed;
+
+      setConversations((prev) => [
+        ...prev,
+        { role: "user", content: userMessage, timestamp: Date.now() },
+        {
+          role: "assistant",
+          content: explanation ?? "Arquitetura gerada",
+          timestamp: Date.now(),
+        },
+      ]);
+
+      if (!Array.isArray(aiNodes) || !Array.isArray(aiEdges)) {
+        toast.error("Resposta inválida da IA");
+        return;
+      }
+
+      if (aiNodes.length === 0) {
+        toast.info("A IA não gerou nenhum bloco para esse prompt");
+        return;
+      }
 
       if (nodes.length > 0) {
-        const offset = nodes.length;
-        aiNodes.forEach((node) => {
-          addNode({
+        const idMap = new Map<string, string>();
+        const newNodes = aiNodes.map((node) => {
+          const newId = `ai-${Date.now()}-${node.id}`;
+          idMap.set(node.id, newId);
+          return {
             ...node,
-            id: `ai-${Date.now()}-${node.id}`,
+            id: newId,
             position: {
-              x: node.position.x + offset * 50,
-              y: node.position.y + offset * 30,
+              x: node.position.x + nodes.length * 50,
+              y: node.position.y + nodes.length * 30,
             },
-          });
+          };
         });
-        toast.success(`✨ ${aiNodes.length} blocos adicionados pela IA`);
+        const newEdges = aiEdges
+          .map((edge) => {
+            const mappedSource = idMap.get(edge.source);
+            const mappedTarget = idMap.get(edge.target);
+            if (!mappedSource || !mappedTarget) return null;
+            return {
+              ...edge,
+              id: `ai-edge-${Date.now()}-${edge.id}`,
+              source: mappedSource,
+              target: mappedTarget,
+            };
+          })
+          .filter((e): e is GraphEdge => e !== null);
+
+        const mergedGraph = {
+          nodes: [...nodes, ...newNodes],
+          edges: [...useGraphStore.getState().edges, ...newEdges],
+        };
+        loadGraph(mergedGraph);
+        toast.success(
+          `✨ ${newNodes.length} blocos e ${newEdges.length} conexões adicionados pela IA`,
+        );
       } else {
         loadGraph({ nodes: aiNodes, edges: aiEdges });
         toast.success(
@@ -85,6 +193,7 @@ export function AICopilot() {
       toast.error("Não foi possível conectar à IA");
     } finally {
       setLoading(false);
+      setStreamingProgress("");
     }
   };
 
@@ -136,6 +245,41 @@ export function AICopilot() {
               arquitetura completa para você.
             </p>
 
+            {conversations.length > 0 && (
+              <div className="mb-3 max-h-32 overflow-y-auto rounded-lg border border-gray-200 p-2 dark:border-gray-700">
+                <p className="mb-1.5 text-xs font-medium text-gray-400 dark:text-gray-500">
+                  Histórico de conversas
+                </p>
+                {conversations.slice(-6).map((msg, i) => (
+                  <div
+                    key={i}
+                    className={`mb-1 flex gap-2 text-xs ${
+                      msg.role === "user" ? "justify-end" : "justify-start"
+                    }`}
+                  >
+                    <button
+                      onClick={() =>
+                        msg.role === "user" && setPrompt(msg.content)
+                      }
+                      disabled={loading || msg.role !== "user"}
+                      className={`max-w-[80%] rounded-lg px-2 py-1 text-left ${
+                        msg.role === "user"
+                          ? "cursor-pointer bg-purple-50 text-purple-700 hover:bg-purple-100 dark:bg-purple-900/30 dark:text-purple-300"
+                          : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                      }`}
+                    >
+                      <span className="font-medium">
+                        {msg.role === "user" ? "Você: " : "IA: "}
+                      </span>
+                      {msg.content.length > 80
+                        ? msg.content.slice(0, 80) + "..."
+                        : msg.content}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="mb-3 flex flex-wrap gap-2">
               {EXAMPLES.map((ex) => (
                 <button
@@ -168,7 +312,13 @@ export function AICopilot() {
               {loading ? (
                 <>
                   <Loader2 size={16} className="animate-spin" />
-                  Gerando arquitetura...
+                  {streamingProgress ? (
+                    <span className="truncate">
+                      Gerando: {streamingProgress}
+                    </span>
+                  ) : (
+                    "Gerando arquitetura..."
+                  )}
                 </>
               ) : (
                 <>

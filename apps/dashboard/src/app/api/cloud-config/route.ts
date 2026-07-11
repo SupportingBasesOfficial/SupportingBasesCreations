@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "../../../lib/supabase-server";
+import { checkRateLimit, rateLimitResponse } from "../../../lib/rateLimit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -45,6 +46,11 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const rl = await checkRateLimit("cloud-config-post", user.id, 20, 60);
+    if (!rl.allowed) {
+      return rateLimitResponse("cloud-config-post", 20, 60);
     }
 
     const body = await request.json();

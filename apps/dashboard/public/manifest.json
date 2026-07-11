@@ -1,8 +1,11 @@
 {
-  "name": "SBC Dashboard - Architecture Design Platform",
+  "name": "SBC ASP — Plataforma de Design de Arquitetura",
   "short_name": "SBC ASP",
-  "description": "SupportingBasesCreations - Mega-Tech Project Generator",
+  "description": "Crie arquiteturas de software completas visualmente. Gere projetos Next.js, tRPC, Prisma e deploy automático na nuvem com IA.",
+  "lang": "pt-BR",
+  "dir": "ltr",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#030712",
   "theme_color": "#2563eb",
@@ -14,6 +17,6 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["developer", "productivity"],
+  "categories": ["developer", "productivity", "business"],
   "orientation": "any"
 }

@@ -13,6 +13,7 @@ import {
   type NodeMouseHandler,
   BackgroundVariant,
   ConnectionMode,
+  useReactFlow,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useGraphStore } from "../../store/graphStore";
@@ -30,14 +31,14 @@ function ArchitectureCanvasInner() {
   const nodes = useGraphStore((s) => s.nodes);
   const edges = useGraphStore((s) => s.edges);
   const addNode = useGraphStore((s) => s.addNode);
-  const removeNode = useGraphStore((s) => s.removeNode);
   const updateNodePosition = useGraphStore((s) => s.updateNodePosition);
+  const pushHistorySnapshot = useGraphStore((s) => s.pushHistorySnapshot);
   const addEdgeStore = useGraphStore((s) => s.addEdge);
-  const removeEdge = useGraphStore((s) => s.removeEdge);
   const setSelectedNode = useGraphStore((s) => s.setSelectedNode);
   const selectedNodeId = useGraphStore((s) => s.selectedNodeId);
   const { getErrorForNode, getErrorForEdge } = useGraphValidation();
   const toast = useToast();
+  const { screenToFlowPosition } = useReactFlow();
 
   const rfNodes: Node[] = nodes.map((n) => {
     const config = getNodeConfig(n.type);
@@ -95,8 +96,9 @@ function ArchitectureCanvasInner() {
   const onNodeDragStop = useCallback(
     (_event: unknown, node: Node) => {
       updateNodePosition(node.id, node.position);
+      pushHistorySnapshot();
     },
-    [updateNodePosition],
+    [updateNodePosition, pushHistorySnapshot],
   );
 
   const onNodeClick: NodeMouseHandler = useCallback(
@@ -123,7 +125,10 @@ function ArchitectureCanvasInner() {
 
       const nodeType = nodeTypeStr as NodeType;
       const config = getNodeConfig(nodeType);
-      const position = { x: event.clientX - 250, y: event.clientY - 100 };
+      const position = screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
 
       const newNode: GraphNode = {
         id: nanoid(),
@@ -162,7 +167,7 @@ function ArchitectureCanvasInner() {
 
       addNode(newNode);
     },
-    [addNode, nodes.length],
+    [addNode, nodes.length, screenToFlowPosition],
   );
 
   return (
@@ -256,14 +261,23 @@ function ArchitectureCanvasInner() {
         onNodeClick={onNodeClick}
         onPaneClick={onPaneClick}
         onNodesDelete={(deletedNodes) => {
-          for (const node of deletedNodes) {
-            removeNode(node.id);
-          }
+          const deletedIds = new Set(deletedNodes.map((n) => n.id));
+          const remainingNodes = nodes.filter((n) => !deletedIds.has(n.id));
+          const remainingEdges = edges.filter(
+            (e) => !deletedIds.has(e.source) && !deletedIds.has(e.target),
+          );
+          useGraphStore.getState().loadGraph({
+            nodes: remainingNodes,
+            edges: remainingEdges,
+          });
         }}
         onEdgesDelete={(deletedEdges) => {
-          for (const edge of deletedEdges) {
-            removeEdge(edge.id);
-          }
+          const deletedIds = new Set(deletedEdges.map((e) => e.id));
+          const remainingEdges = edges.filter((e) => !deletedIds.has(e.id));
+          useGraphStore.getState().loadGraph({
+            nodes,
+            edges: remainingEdges,
+          });
         }}
         connectionMode={ConnectionMode.Loose}
         fitView

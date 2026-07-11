@@ -1,11 +1,14 @@
-import { FeatureFlag, ArchitectureType } from '@sbc/core';
-import type { Generator, GenerationContext } from '@sbc/core';
-import type { GeneratedArtifact } from '@sbc/shared';
+import { FeatureFlag, ArchitectureType } from "@sbc/core";
+import type { Generator, GenerationContext } from "@sbc/core";
+import type { GeneratedArtifact } from "@sbc/shared";
 
 export class BillingGenerator implements Generator {
-  readonly name = 'billing';
-  readonly version = '1.0.0';
-  readonly supportedFeatures: readonly FeatureFlag[] = [FeatureFlag.BILLING, FeatureFlag.BILLING_USAGE_BASED];
+  readonly name = "billing";
+  readonly version = "1.0.0";
+  readonly supportedFeatures: readonly FeatureFlag[] = [
+    FeatureFlag.BILLING,
+    FeatureFlag.BILLING_USAGE_BASED,
+  ];
   readonly supportedArchitectures: readonly ArchitectureType[] = [];
 
   async generate(context: GenerationContext): Promise<GeneratedArtifact[]> {
@@ -14,71 +17,71 @@ export class BillingGenerator implements Generator {
     const hasUsageBased = project.hasFeature(FeatureFlag.BILLING_USAGE_BASED);
 
     artifacts.push({
-      path: 'src/lib/billing/stripe.ts',
+      path: "src/lib/billing/stripe.ts",
       content: this.generateStripeClient(),
-      language: 'typescript',
+      language: "typescript",
     });
 
     artifacts.push({
-      path: 'src/lib/billing/plans.ts',
+      path: "src/lib/billing/plans.ts",
       content: this.generatePlans(),
-      language: 'typescript',
+      language: "typescript",
     });
 
     artifacts.push({
-      path: 'src/lib/billing/subscriptions.ts',
+      path: "src/lib/billing/subscriptions.ts",
       content: this.generateSubscriptionService(hasUsageBased),
-      language: 'typescript',
+      language: "typescript",
     });
 
     artifacts.push({
-      path: 'src/app/api/billing/checkout/route.ts',
+      path: "src/app/api/billing/checkout/route.ts",
       content: this.generateCheckoutRoute(),
-      language: 'typescript',
+      language: "typescript",
     });
 
     artifacts.push({
-      path: 'src/app/api/billing/portal/route.ts',
+      path: "src/app/api/billing/portal/route.ts",
       content: this.generatePortalRoute(),
-      language: 'typescript',
+      language: "typescript",
     });
 
     artifacts.push({
-      path: 'src/app/api/billing/webhook/route.ts',
+      path: "src/app/api/billing/webhook/route.ts",
       content: this.generateWebhookRoute(),
-      language: 'typescript',
+      language: "typescript",
     });
 
     if (hasUsageBased) {
       artifacts.push({
-        path: 'src/lib/billing/usage.ts',
+        path: "src/lib/billing/usage.ts",
         content: this.generateUsageService(),
-        language: 'typescript',
+        language: "typescript",
       });
 
       artifacts.push({
-        path: 'src/app/api/billing/usage/route.ts',
+        path: "src/app/api/billing/usage/route.ts",
         content: this.generateUsageRoute(),
-        language: 'typescript',
+        language: "typescript",
       });
     }
 
     artifacts.push({
-      path: 'src/app/billing/page.tsx',
+      path: "src/app/billing/page.tsx",
       content: this.generateBillingPage(),
-      language: 'typescript',
+      language: "typescript",
     });
 
     artifacts.push({
-      path: 'src/hooks/useSubscription.ts',
+      path: "src/hooks/useSubscription.ts",
       content: this.generateUseSubscriptionHook(),
-      language: 'typescript',
+      language: "typescript",
     });
 
     artifacts.push({
-      path: 'supabase/migrations/0002_billing_tables.sql',
+      path: "supabase/migrations/0002_billing_tables.sql",
       content: this.generateMigration(),
-      language: 'sql',
+      language: "sql",
     });
 
     return artifacts;
@@ -172,8 +175,12 @@ export interface Subscription {
   currentPeriodStart: number;
   currentPeriodEnd: number;
   cancelAtPeriodEnd: boolean;
-${hasUsageBased ? `  usageThisPeriod: number;
-  usageLimit: number;` : ''}}
+${
+  hasUsageBased
+    ? `  usageThisPeriod: number;
+  usageLimit: number;`
+    : ""
+}}
 
 export async function createCheckoutSession(
   userId: string,
@@ -218,8 +225,12 @@ export async function getSubscription(subscriptionId: string): Promise<Subscript
     currentPeriodStart: sub.current_period_start,
     currentPeriodEnd: sub.current_period_end,
     cancelAtPeriodEnd: sub.cancel_at_period_end,
-${hasUsageBased ? `    usageThisPeriod: 0,
-    usageLimit: plan?.limits.apiCalls ?? 1000,` : ''}  };
+${
+  hasUsageBased
+    ? `    usageThisPeriod: 0,
+    usageLimit: plan?.limits.apiCalls ?? 1000,`
+    : ""
+}  };
 }
 
 export async function cancelSubscription(subscriptionId: string) {
@@ -231,24 +242,30 @@ export async function cancelSubscription(subscriptionId: string) {
   private generateCheckoutRoute(): string {
     return `import { NextRequest, NextResponse } from 'next/server';
 import { createCheckoutSession } from '@/lib/billing/subscriptions';
+import { getServerAuthSession } from '@/server/auth';
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerAuthSession();
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { priceId } = await request.json();
     if (!priceId) {
       return NextResponse.json({ error: 'Missing priceId' }, { status: 400 });
     }
 
     const origin = request.headers.get('origin') ?? '';
-    const session = await createCheckoutSession(
-      'user-id',
-      'user@example.com',
+    const checkoutSession = await createCheckoutSession(
+      session.user.id,
+      session.user.email ?? '',
       priceId,
       \`\${origin}/billing?success=true\`,
       \`\${origin}/billing?canceled=true\`,
     );
 
-    return NextResponse.json({ url: session.url });
+    return NextResponse.json({ url: checkoutSession.url });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Checkout failed' },

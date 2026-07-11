@@ -86,6 +86,17 @@ export class CloudDeployPipeline {
         supabaseResult,
       );
 
+      // Step 5: Wait for Vercel deployment to be ready
+      onProgress?.({
+        step: "deploying-vercel",
+        message: "Waiting for Vercel deployment to complete...",
+        percentage: 90,
+      });
+      const finalUrl = await this.waitForVercelDeployment(
+        config,
+        vercelResult.deploymentId,
+      );
+
       onProgress?.({
         step: "complete",
         message: "Deployment complete!",
@@ -95,10 +106,12 @@ export class CloudDeployPipeline {
       return {
         success: true,
         githubUrl: gitResult.repoUrl,
-        vercelUrl: vercelResult.url,
+        vercelUrl: finalUrl ?? vercelResult.url,
         supabaseUrl: supabaseResult.url,
         supabaseProjectRef: supabaseResult.projectRef,
         supabaseAnonKey: supabaseResult.anonKey,
+        databaseUrl: supabaseResult.databaseUrl,
+        dbPassword: supabaseResult.dbPassword,
       };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -125,7 +138,7 @@ export class CloudDeployPipeline {
     config: CloudConfig,
     projectName: string,
     repoUrl: string,
-  ): Promise<{ url: string; projectId: string }> {
+  ): Promise<{ url: string; projectId: string; deploymentId: string }> {
     const headers: Record<string, string> = {
       Authorization: `Bearer ${config.vercel.token}`,
       "Content-Type": "application/json",
@@ -187,16 +200,68 @@ export class CloudDeployPipeline {
       );
     }
 
-    const deployData = (await deployRes.json()) as { url?: string };
+    const deployData = (await deployRes.json()) as {
+      url?: string;
+      id?: string;
+    };
     const url = deployData.url ? `https://${deployData.url}` : repoUrl;
+    const deploymentId = deployData.id ?? "";
 
-    return { url, projectId };
+    return { url, projectId, deploymentId };
+  }
+
+  private async waitForVercelDeployment(
+    config: CloudConfig,
+    deploymentId: string,
+  ): Promise<string | null> {
+    if (!deploymentId) return null;
+
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${config.vercel.token}`,
+    };
+
+    const teamParam = config.vercel.teamId
+      ? `?teamId=${config.vercel.teamId}`
+      : "";
+
+    for (let i = 0; i < 60; i++) {
+      await new Promise((r) => setTimeout(r, 5000));
+
+      const res = await fetch(
+        `https://api.vercel.com/v13/deployments/${deploymentId}${teamParam}`,
+        { headers },
+      );
+
+      if (!res.ok) continue;
+
+      const data = (await res.json()) as {
+        status?: string;
+        readyState?: string;
+        url?: string;
+      };
+
+      if (data.status === "READY" || data.readyState === "READY") {
+        return data.url ? `https://${data.url}` : null;
+      }
+
+      if (data.status === "ERROR" || data.readyState === "ERROR") {
+        throw new Error("Vercel deployment failed during build");
+      }
+    }
+
+    return null;
   }
 
   private async provisionSupabase(
     config: CloudConfig,
     projectName: string,
-  ): Promise<{ url: string; projectRef: string; anonKey: string }> {
+  ): Promise<{
+    url: string;
+    projectRef: string;
+    anonKey: string;
+    databaseUrl: string;
+    dbPassword: string;
+  }> {
     const headers: Record<string, string> = {
       Authorization: `Bearer ${config.supabase.token}`,
       "Content-Type": "application/json",
@@ -262,10 +327,27 @@ export class CloudDeployPipeline {
       anonKey = anon?.api_key ?? "";
     }
 
+    // Get database connection string
+    const dbRes = await fetch(
+      `https://api.supabase.com/v1/projects/${projectRef}/config/database`,
+      { headers },
+    );
+    let databaseUrl = `postgresql://postgres:${dbPassword}@db.${projectRef}.supabase.co:5432/postgres`;
+    if (dbRes.ok) {
+      const dbData = (await dbRes.json().catch(() => ({}))) as {
+        connection_string?: string;
+      };
+      if (dbData.connection_string) {
+        databaseUrl = dbData.connection_string;
+      }
+    }
+
     return {
       url: `https://${projectRef}.supabase.co`,
       projectRef,
       anonKey,
+      databaseUrl,
+      dbPassword,
     };
   }
 
@@ -273,7 +355,12 @@ export class CloudDeployPipeline {
     config: CloudConfig,
     _projectName: string,
     vercelProjectId: string,
-    supabase: { projectRef: string; anonKey: string },
+    supabase: {
+      projectRef: string;
+      anonKey: string;
+      databaseUrl: string;
+      dbPassword: string;
+    },
   ): Promise<void> {
     const headers: Record<string, string> = {
       Authorization: `Bearer ${config.vercel.token}`,
@@ -295,30 +382,54 @@ export class CloudDeployPipeline {
         value: supabase.anonKey,
         target: ["production"],
       },
+      {
+        key: "DATABASE_URL",
+        value: supabase.databaseUrl,
+        target: ["production"],
+      },
+      {
+        key: "DIRECT_URL",
+        value: supabase.databaseUrl,
+        target: ["production"],
+      },
+      {
+        key: "NEXTAUTH_SECRET",
+        value: this.generateSecret(),
+        target: ["production"],
+      },
+      {
+        key: "NEXTAUTH_URL",
+        value: `https://${_projectName}.vercel.app`,
+        target: ["production"],
+      },
     ];
 
     if (vercelProjectId) {
       try {
-        await fetch(
-          `https://api.vercel.com/v9/projects/${vercelProjectId}/env${teamParam}`,
-          {
-            method: "POST",
-            headers,
-            body: JSON.stringify(envVars[0]),
-          },
-        );
-        await fetch(
-          `https://api.vercel.com/v9/projects/${vercelProjectId}/env${teamParam}`,
-          {
-            method: "POST",
-            headers,
-            body: JSON.stringify(envVars[1]),
-          },
+        await Promise.all(
+          envVars.map((envVar) =>
+            fetch(
+              `https://api.vercel.com/v9/projects/${vercelProjectId}/env${teamParam}`,
+              {
+                method: "POST",
+                headers,
+                body: JSON.stringify(envVar),
+              },
+            ),
+          ),
         );
       } catch {
         // best effort — env vars can be set manually later
       }
     }
+  }
+
+  private generateSecret(): string {
+    const array = new Uint8Array(32);
+    crypto.getRandomValues(array);
+    return Array.from(array)
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
   }
 
   private generatePassword(): string {

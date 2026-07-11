@@ -1,10 +1,12 @@
 "use client";
 
-import { useCollaboration } from "../../hooks/useCollaboration";
+import { useCollaborationContext } from "./CollaborationContext";
 import { Users, Wifi, WifiOff } from "lucide-react";
 
-export function PresenceAvatars({ roomId }: { roomId: string }) {
-  const { peers, isConnected } = useCollaboration(roomId);
+export function PresenceAvatars() {
+  const collab = useCollaborationContext();
+  const peers = collab?.peers ?? [];
+  const isConnected = collab?.isConnected ?? false;
 
   return (
     <div className="flex items-center gap-2">

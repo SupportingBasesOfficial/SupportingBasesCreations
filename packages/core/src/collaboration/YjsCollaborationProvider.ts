@@ -72,6 +72,10 @@ export class YjsCollaborationProvider implements CollaborationProvider {
     this.peerId = `peer-${Math.random().toString(36).slice(2, 10)}`;
   }
 
+  get roomId(): string {
+    return this.options.roomId;
+  }
+
   async connect(): Promise<void> {
     const Y = await import("yjs");
     const ydoc = new Y.Doc() as unknown as YDocLike;
@@ -91,13 +95,18 @@ export class YjsCollaborationProvider implements CollaborationProvider {
     if (this.options.supabaseUrl && this.options.supabaseKey) {
       try {
         const { createClient } = await import("@supabase/supabase-js");
-        const supabase = createClient(this.options.supabaseUrl, this.options.supabaseKey);
+        const supabase = createClient(
+          this.options.supabaseUrl,
+          this.options.supabaseKey,
+        );
         const channel = supabase.channel(`sbc-graph-${this.options.roomId}`);
 
         channel
           .on("broadcast", { event: "graph-update" }, ({ payload }) => {
             const update = payload as Uint8Array;
-            const Y = this.doc as unknown as { applyUpdate: (update: Uint8Array) => void };
+            const Y = this.doc as unknown as {
+              applyUpdate: (update: Uint8Array) => void;
+            };
             if (Y && update) Y.applyUpdate(update);
           })
           .subscribe((status: string) => {
@@ -108,13 +117,18 @@ export class YjsCollaborationProvider implements CollaborationProvider {
 
         this.provider = {
           awareness: null,
-          destroy: () => { supabase.removeChannel(channel); },
+          destroy: () => {
+            supabase.removeChannel(channel);
+          },
           channel,
         };
       } catch {
         // @supabase/supabase-js not available — continue without cloud sync
       }
-    } else if (this.options.signalingServers && this.options.signalingServers.length > 0) {
+    } else if (
+      this.options.signalingServers &&
+      this.options.signalingServers.length > 0
+    ) {
       // Only use y-webrtc if explicit signaling servers are provided (self-hosted)
       try {
         // @ts-expect-error - y-webrtc is an optional peer dependency
@@ -128,7 +142,8 @@ export class YjsCollaborationProvider implements CollaborationProvider {
         this.provider = new WebrtcProvider(this.options.roomId, ydoc, {
           signaling: this.options.signalingServers,
           password: this.options.password,
-          maxConns: this.options.maxConns ?? 20 + Math.floor(Math.random() * 15),
+          maxConns:
+            this.options.maxConns ?? 20 + Math.floor(Math.random() * 15),
         });
 
         this.awareness = (this.provider as { awareness: unknown }).awareness;

@@ -1462,6 +1462,17 @@ export function TemplatesGallery() {
   }, []);
 
   const applyTemplate = (tpl: Template) => {
+    const currentNodeCount = useGraphStore.getState().nodes.length;
+    if (currentNodeCount > 0) {
+      if (
+        !window.confirm(
+          `Você já tem ${currentNodeCount} bloco(s) no canvas. Aplicar o modelo "${tpl.name}" vai substituir tudo. Continuar?`,
+        )
+      ) {
+        return;
+      }
+    }
+
     const idMap = new Map<string, string>();
     const nodes: GraphNode[] = tpl.nodes.map((n) => {
       const id = nanoid();

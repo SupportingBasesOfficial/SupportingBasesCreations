@@ -18,7 +18,9 @@ export async function middleware(request: NextRequest) {
   );
 
   if (isPublic) {
-    return NextResponse.next();
+    const publicResponse = NextResponse.next();
+    addSecurityHeaders(publicResponse);
+    return publicResponse;
   }
 
   // Check Supabase auth session
@@ -36,11 +38,24 @@ export async function middleware(request: NextRequest) {
 
     if (!hasCloudToken) {
       const loginUrl = new URL("/login", request.url);
-      return NextResponse.redirect(loginUrl);
+      const redirectResponse = NextResponse.redirect(loginUrl);
+      addSecurityHeaders(redirectResponse);
+      return redirectResponse;
     }
   }
 
+  addSecurityHeaders(response);
   return response;
+}
+
+function addSecurityHeaders(response: NextResponse) {
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=()",
+  );
 }
 
 export const config = {

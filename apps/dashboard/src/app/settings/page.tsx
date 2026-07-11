@@ -15,15 +15,21 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const match = document.cookie.match(/(?:^|; )sbc-theme=([^;]*)/);
-    const current = match ? decodeURIComponent(match[1]) : "light";
-    setTheme(current as "light" | "dark");
+    const stored = match ? decodeURIComponent(match[1]) : null;
+    const prefersDark = window.matchMedia(
+      "(prefers-color-scheme: dark)",
+    ).matches;
+    const initial = (stored ?? (prefersDark ? "dark" : "light")) as
+      "light" | "dark";
+    setTheme(initial);
     setLoading(false);
   }, []);
 
   const handleThemeChange = (next: "light" | "dark") => {
     setTheme(next);
     document.documentElement.classList.toggle("dark", next === "dark");
-    document.cookie = `sbc-theme=${next};expires=${new Date(Date.now() + 365 * 864e5).toUTCString()};path=/;SameSite=Lax`;
+    const isProd = process.env.NODE_ENV === "production";
+    document.cookie = `sbc-theme=${next};expires=${new Date(Date.now() + 365 * 864e5).toUTCString()};path=/;SameSite=Lax${isProd ? ";Secure" : ""}`;
     fetch("/api/theme", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },

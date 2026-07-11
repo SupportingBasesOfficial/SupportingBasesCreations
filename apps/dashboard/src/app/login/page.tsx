@@ -40,6 +40,7 @@ export default function LoginPage() {
       setSubmitting(false);
       if (error) {
         setError(error.message);
+        setPassword("");
       } else if (needsEmailConfirmation) {
         setInfo(
           "Conta criada! Verifique seu email para o link de confirmação.",

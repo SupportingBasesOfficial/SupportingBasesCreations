@@ -69,6 +69,7 @@ export function CloudSettingsModal({
   }, [cloudConfig, open]);
 
   useEffect(() => {
+    if (!open) return;
     async function loadCloudConfig() {
       try {
         const res = await fetch("/api/cloud-config");
@@ -98,7 +99,7 @@ export function CloudSettingsModal({
       }
     }
     loadCloudConfig();
-  }, []);
+  }, [open]);
 
   const handleOAuthConnect = async (provider: ProviderId) => {
     setOauthLoading(provider);
@@ -160,6 +161,30 @@ export function CloudSettingsModal({
       ...prev,
       [provider]: { connected: false, token: "", owner: "" },
     }));
+    document.cookie = `sbc-token-${provider}=;path=/;max-age=0;SameSite=Lax`;
+    const updatedConfig: CloudConfig = {
+      github: {
+        token: provider === "github" ? "" : providers.github.token,
+        owner: provider === "github" ? "" : providers.github.owner,
+      },
+      vercel: {
+        token: provider === "vercel" ? "" : providers.vercel.token,
+        teamId:
+          provider === "vercel"
+            ? undefined
+            : providers.vercel.owner || undefined,
+      },
+      supabase: {
+        token: provider === "supabase" ? "" : providers.supabase.token,
+        organizationId: provider === "supabase" ? "" : providers.supabase.owner,
+      },
+    };
+    setCloudConfig(updatedConfig);
+    fetch("/api/cloud-config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cloud_config: updatedConfig }),
+    }).catch(() => {});
   };
 
   if (!open) return null;

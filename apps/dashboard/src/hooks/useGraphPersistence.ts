@@ -6,7 +6,14 @@ import type { ArchitectureGraph } from "@sbc/shared";
 
 const CACHE_KEY = "sbc-architecture-graph";
 const ARCH_ID_KEY = "sbc-arch-id";
+const PROJECT_ID_KEY = "sbc-project-id";
 const AUTOSAVE_INTERVAL = 30_000;
+
+function getProjectIdFromUrl(): string | null {
+  if (typeof window === "undefined") return null;
+  const params = new URLSearchParams(window.location.search);
+  return params.get("project");
+}
 
 export function useGraphPersistence() {
   const loadGraph = useGraphStore((s) => s.loadGraph);
@@ -23,6 +30,19 @@ export function useGraphPersistence() {
     saveToCache();
 
     try {
+      const urlProjectId = getProjectIdFromUrl();
+      const storedProjectId = localStorage.getItem(PROJECT_ID_KEY);
+      const projectId = urlProjectId ?? storedProjectId;
+
+      if (projectId) {
+        await fetch(`/api/projects/${projectId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ graphData: graph }),
+        });
+        return;
+      }
+
       const existingId = localStorage.getItem(ARCH_ID_KEY);
       const body = { graph_json: graph };
 
@@ -70,7 +90,14 @@ export function useGraphPersistence() {
       if (archs && archs.length > 0) {
         const latest = archs[0];
         localStorage.setItem(ARCH_ID_KEY, latest.id);
-        const graph = latest.graph_json as ArchitectureGraph;
+        const graph = latest.graph_json as ArchitectureGraph | null;
+        if (
+          !graph ||
+          !Array.isArray(graph.nodes) ||
+          !Array.isArray(graph.edges)
+        ) {
+          return false;
+        }
         loadGraph(graph);
         localStorage.setItem(CACHE_KEY, JSON.stringify(graph));
         return true;
@@ -84,6 +111,7 @@ export function useGraphPersistence() {
   const clear = useCallback(() => {
     localStorage.removeItem(CACHE_KEY);
     localStorage.removeItem(ARCH_ID_KEY);
+    localStorage.removeItem(PROJECT_ID_KEY);
   }, []);
 
   const exportJson = useCallback((): string => {
@@ -111,5 +139,17 @@ export function useGraphPersistence() {
     return () => clearInterval(interval);
   }, []);
 
-  return { save, load, loadFromCloud, clear, exportJson, importJson };
+  return {
+    save,
+    load,
+    loadFromCloud,
+    clear,
+    exportJson,
+    importJson,
+    setProjectId: (id: string) => {
+      localStorage.setItem(PROJECT_ID_KEY, id);
+      localStorage.removeItem(CACHE_KEY);
+      localStorage.removeItem(ARCH_ID_KEY);
+    },
+  };
 }

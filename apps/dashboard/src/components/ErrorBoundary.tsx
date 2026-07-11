@@ -36,14 +36,14 @@ export class ErrorBoundary extends Component<Props, State> {
       if (this.props.fallback) return this.props.fallback;
 
       return (
-        <div className="flex h-screen flex-col items-center justify-center gap-4 bg-gray-50 p-8">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
+        <div className="flex h-screen flex-col items-center justify-center gap-4 bg-gray-50 p-8 dark:bg-gray-950">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
             <AlertTriangle size={32} className="text-red-600" />
           </div>
-          <h1 className="text-xl font-bold text-gray-800">
+          <h1 className="text-xl font-bold text-gray-800 dark:text-gray-100">
             Something went wrong
           </h1>
-          <p className="max-w-md text-center text-sm text-gray-500">
+          <p className="max-w-md text-center text-sm text-gray-500 dark:text-gray-400">
             {this.state.error?.message ?? "An unexpected error occurred."}
           </p>
           <button

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useCollaboration } from "../../hooks/useCollaboration";
+import { useEffect, useState, useRef } from "react";
+import { useCollaborationContext } from "./CollaborationContext";
 
 interface RemoteCursor {
   id: string;
@@ -11,15 +11,19 @@ interface RemoteCursor {
   y: number;
 }
 
-export function LiveCursors({ roomId }: { roomId: string }) {
-  const { provider, peers } = useCollaboration(roomId);
+export function LiveCursors() {
+  const collab = useCollaborationContext();
+  const provider = collab?.provider ?? null;
+  const peers = collab?.peers ?? [];
   const [cursors, setCursors] = useState<RemoteCursor[]>([]);
+  const peersRef = useRef(peers);
+  peersRef.current = peers;
 
   useEffect(() => {
     if (!provider) return;
 
     const interval = setInterval(() => {
-      const remoteCursors: RemoteCursor[] = peers
+      const remoteCursors: RemoteCursor[] = peersRef.current
         .filter((p) => p.cursor)
         .map((p) => ({
           id: p.id,
@@ -32,7 +36,7 @@ export function LiveCursors({ roomId }: { roomId: string }) {
     }, 100);
 
     return () => clearInterval(interval);
-  }, [provider, peers]);
+  }, [provider]);
 
   return (
     <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden">

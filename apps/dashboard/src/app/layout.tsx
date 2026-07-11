@@ -3,13 +3,49 @@ import "./globals.css";
 import { WebVitals } from "../components/WebVitals";
 
 export const metadata: Metadata = {
-  title: "SBC Dashboard",
-  description: "SupportingBasesCreations - Mega-Tech Project Generator",
+  title: {
+    default: "SBC ASP — Plataforma de Design de Arquitetura",
+    template: "%s | SBC ASP",
+  },
+  description:
+    "Crie arquiteturas de software completas visualmente. Gere projetos Next.js, tRPC, Prisma e deploy automático na nuvem com IA.",
+  keywords: [
+    "arquitetura de software",
+    "gerador de código",
+    "Next.js",
+    "tRPC",
+    "Prisma",
+    "Supabase",
+    "Vercel",
+    "low-code",
+    "SaaS",
+    "deploy automático",
+  ],
+  authors: [{ name: "SupportingBasesCreations" }],
+  creator: "SupportingBasesCreations",
   manifest: "/manifest.json",
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
     apple: "/favicon.svg",
+  },
+  openGraph: {
+    type: "website",
+    locale: "pt_BR",
+    title: "SBC ASP — Plataforma de Design de Arquitetura",
+    description:
+      "Crie arquiteturas de software completas visualmente. Gere projetos Next.js, tRPC, Prisma e deploy automático na nuvem com IA.",
+    siteName: "SBC ASP",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "SBC ASP — Plataforma de Design de Arquitetura",
+    description:
+      "Crie arquiteturas de software completas visualmente. Gere projetos Next.js, tRPC, Prisma e deploy automático na nuvem com IA.",
+  },
+  robots: {
+    index: true,
+    follow: true,
   },
 };
 

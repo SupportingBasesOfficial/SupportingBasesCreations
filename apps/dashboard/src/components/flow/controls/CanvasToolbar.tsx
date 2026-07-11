@@ -8,8 +8,8 @@ import { useRef } from "react";
 export function CanvasToolbar() {
   const undo = useGraphStore((s) => s.undo);
   const redo = useGraphStore((s) => s.redo);
-  const canUndo = useGraphStore((s) => s.canUndo());
-  const canRedo = useGraphStore((s) => s.canRedo());
+  const canUndo = useGraphStore((s) => s.historyIndex > 0);
+  const canRedo = useGraphStore((s) => s.historyIndex < s.history.length - 1);
   const nodeCount = useGraphStore((s) => s.nodes.length);
   const { save, load, exportJson, importJson } = useGraphPersistence();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -46,6 +46,7 @@ export function CanvasToolbar() {
       importJson(json);
     };
     reader.readAsText(file);
+    e.target.value = "";
   };
 
   return (

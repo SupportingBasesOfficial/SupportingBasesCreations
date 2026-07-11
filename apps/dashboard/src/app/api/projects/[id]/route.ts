@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "../../../../lib/supabase-server";
+import { checkRateLimit, rateLimitResponse } from "../../../../lib/rateLimit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -46,6 +47,11 @@ export async function PUT(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const rl = await checkRateLimit("projects-put", user.id, 60, 60);
+  if (!rl.allowed) {
+    return rateLimitResponse("projects-put", 60, 60);
+  }
+
   const body = await request.json();
   const { name, description, graphData } = body as {
     name?: string;
@@ -53,7 +59,9 @@ export async function PUT(
     graphData?: unknown;
   };
 
-  const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  const updates: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  };
   if (name !== undefined) updates.name = name;
   if (description !== undefined) updates.description = description;
   if (graphData !== undefined) updates.graph_data = graphData;

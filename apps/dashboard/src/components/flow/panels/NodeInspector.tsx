@@ -33,7 +33,8 @@ const FIELD_TYPES: { value: string; label: string; hint: string }[] = [
 export function NodeInspector() {
   const selectedNodeId = useGraphStore((s) => s.selectedNodeId);
   const nodes = useGraphStore((s) => s.nodes);
-  const updateNode = useGraphStore((s) => s.updateNode);
+  const updateNode = useGraphStore((s) => s.updateNodeData);
+  const pushHistorySnapshot = useGraphStore((s) => s.pushHistorySnapshot);
   const removeNode = useGraphStore((s) => s.removeNode);
   const setSelectedNode = useGraphStore((s) => s.setSelectedNode);
 
@@ -94,6 +95,7 @@ export function NodeInspector() {
               type="text"
               value={node.data.label}
               onChange={(e) => updateNode(node.id, { label: e.target.value })}
+              onBlur={pushHistorySnapshot}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-600"
             />
           </div>
@@ -107,6 +109,7 @@ export function NodeInspector() {
               onChange={(e) =>
                 updateNode(node.id, { description: e.target.value })
               }
+              onBlur={pushHistorySnapshot}
               rows={2}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-600"
             />
@@ -124,6 +127,7 @@ export function NodeInspector() {
                   onChange={(e) =>
                     updateNode(node.id, { tableName: e.target.value })
                   }
+                  onBlur={pushHistorySnapshot}
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-600"
                 />
               </div>
@@ -158,7 +162,7 @@ export function NodeInspector() {
                   {((node.data.fields ?? []) as FieldDef[]).map(
                     (field, idx) => (
                       <div
-                        key={idx}
+                        key={`${field.name}-${idx}`}
                         className="rounded-md border border-gray-200 p-2 dark:border-gray-700"
                       >
                         <div className="flex items-center gap-2">
@@ -285,6 +289,7 @@ export function NodeInspector() {
                   onChange={(e) =>
                     updateNode(node.id, { route: e.target.value })
                   }
+                  onBlur={pushHistorySnapshot}
                   placeholder="/api/users"
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-600"
                 />
@@ -301,6 +306,7 @@ export function NodeInspector() {
                         "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
                     })
                   }
+                  onBlur={pushHistorySnapshot}
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                 >
                   <option value="GET">Buscar dados (GET)</option>
@@ -324,6 +330,7 @@ export function NodeInspector() {
                   onChange={(e) =>
                     updateNode(node.id, { framework: e.target.value })
                   }
+                  onBlur={pushHistorySnapshot}
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                 >
                   <option value="NEXTJS">Next.js (Recomendado)</option>
@@ -341,6 +348,7 @@ export function NodeInspector() {
                   onChange={(e) =>
                     updateNode(node.id, { styling: e.target.value })
                   }
+                  onBlur={pushHistorySnapshot}
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                 >
                   <option value="TAILWIND">Tailwind CSS (Recomendado)</option>
@@ -364,6 +372,7 @@ export function NodeInspector() {
                 onChange={(e) =>
                   updateNode(node.id, { region: e.target.value })
                 }
+                onBlur={pushHistorySnapshot}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-600"
               />
             </div>

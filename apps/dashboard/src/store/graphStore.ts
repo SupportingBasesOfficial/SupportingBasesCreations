@@ -29,6 +29,7 @@ interface GraphState {
   addNode: (node: GraphNode) => void;
   removeNode: (nodeId: string) => void;
   updateNode: (nodeId: string, data: Partial<GraphNode["data"]>) => void;
+  updateNodeData: (nodeId: string, data: Partial<GraphNode["data"]>) => void;
   updateNodePosition: (
     nodeId: string,
     position: { x: number; y: number },
@@ -45,6 +46,7 @@ interface GraphState {
   redo: () => void;
   canUndo: () => boolean;
   canRedo: () => boolean;
+  pushHistorySnapshot: () => void;
 }
 
 function runValidation(graph: ArchitectureGraph): GraphValidationResult {
@@ -141,6 +143,20 @@ export const useGraphStore = create<GraphState>((set, get) => ({
       isValid: result.valid,
       history: newHistory,
       historyIndex: newIndex,
+    });
+  },
+
+  updateNodeData: (nodeId, data) => {
+    const current = get();
+    const nodes = current.nodes.map((n) =>
+      n.id === nodeId ? { ...n, data: { ...n.data, ...data } } : n,
+    );
+    const graph = { nodes, edges: current.edges };
+    const result = runValidation(graph);
+    set({
+      nodes,
+      validationErrors: result.errors,
+      isValid: result.valid,
     });
   },
 
@@ -279,4 +295,15 @@ export const useGraphStore = create<GraphState>((set, get) => ({
 
   canUndo: () => get().historyIndex > 0,
   canRedo: () => get().historyIndex < get().history.length - 1,
+
+  pushHistorySnapshot: () => {
+    const current = get();
+    const snap: GraphSnapshot = { nodes: current.nodes, edges: current.edges };
+    const { history: newHistory, index: newIndex } = pushHistory(
+      current.history,
+      current.historyIndex,
+      snap,
+    );
+    set({ history: newHistory, historyIndex: newIndex });
+  },
 }));

@@ -60,9 +60,10 @@ export function CanvasContextMenu() {
   const handlePaste = useCallback(() => {
     if (!clipboardRef.current) return;
     const node = clipboardRef.current.node as GraphNode;
+    const newId = `node-${Date.now()}`;
     const clone: GraphNode = {
       ...node,
-      id: `node-${Date.now()}`,
+      id: newId,
       position: {
         x: node.position.x + 40,
         y: node.position.y + 40,
@@ -70,9 +71,10 @@ export function CanvasContextMenu() {
       data: { ...node.data, label: `${node.data.label} (paste)` },
     };
     addNode(clone);
+    setSelectedNode(newId);
     toast.info("Bloco colado");
     setMenu(null);
-  }, [addNode, toast]);
+  }, [addNode, setSelectedNode, toast]);
 
   const handleDelete = useCallback(() => {
     if (!menu?.nodeId) return;
@@ -85,9 +87,10 @@ export function CanvasContextMenu() {
     if (!menu?.nodeId) return;
     const node = nodes.find((n) => n.id === menu.nodeId);
     if (node) {
+      const newId = `node-${Date.now()}`;
       const clone = {
         ...node,
-        id: `node-${Date.now()}`,
+        id: newId,
         position: {
           x: node.position.x + 40,
           y: node.position.y + 40,
@@ -95,10 +98,11 @@ export function CanvasContextMenu() {
         data: { ...node.data, label: `${node.data.label} (copy)` },
       };
       addNode(clone);
+      setSelectedNode(newId);
       toast.info("Bloco duplicado");
     }
     setMenu(null);
-  }, [menu, nodes, addNode, toast]);
+  }, [menu, nodes, addNode, setSelectedNode, toast]);
 
   const handleSelect = useCallback(() => {
     if (!menu?.nodeId) return;
@@ -109,12 +113,16 @@ export function CanvasContextMenu() {
   if (!menu) return null;
 
   const hasNode = !!menu.nodeId;
+  const menuWidth = 180;
+  const menuHeight = hasNode ? 220 : 48;
+  const left = Math.min(menu.x, window.innerWidth - menuWidth - 8);
+  const top = Math.min(menu.y, window.innerHeight - menuHeight - 8);
 
   return (
     <div
       ref={menuRef}
       className="fixed z-50 min-w-[180px] rounded-lg border border-gray-200 bg-white py-1 shadow-xl dark:border-gray-700 dark:bg-gray-800"
-      style={{ left: menu.x, top: menu.y }}
+      style={{ left, top }}
     >
       {hasNode && (
         <>

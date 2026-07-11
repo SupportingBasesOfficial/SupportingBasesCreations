@@ -19,7 +19,9 @@ export class TRPCGenerator implements Generator {
     const { project } = context;
     const artifacts: GeneratedArtifact[] = [];
 
-    const contextFile = this.generateContext();
+    const contextFile = this.generateContext(
+      project.hasFeature(FeatureFlag.AUTH),
+    );
     artifacts.push({
       path: "src/server/api/trpc.ts",
       content: contextFile,
@@ -121,6 +123,10 @@ if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
     const entityName = entity.name;
     const camelName = this.camelCase(entityName);
     const lowerName = entityName.toLowerCase();
+    const hasCreatedAt = entity.hasFeature(FeatureFlag.AUDIT_LOG);
+    const orderByClause = hasCreatedAt
+      ? "orderBy: { createdAt: 'desc' }"
+      : "orderBy: { id: 'desc' }";
 
     return `import { z } from 'zod';
 import { createTRPCRouter, protectedProcedure } from '../trpc';
@@ -138,7 +144,7 @@ export const ${camelName}Router = createTRPCRouter({
         take: limit + 1,
         cursor: cursor ? { id: cursor } : undefined,
         skip: cursor ? 1 : 0,
-        orderBy: { createdAt: 'desc' },
+        ${orderByClause},
       });
       const nextCursor = items.length > limit ? items[items.length - 1].id : undefined;
       return { items: items.slice(0, limit), nextCursor };
@@ -221,8 +227,9 @@ ${this.generateZodSchema(entity, true)}
     }
   }
 
-  private generateContext(): string {
-    return `import { initTRPC, TRPCError } from '@trpc/server';
+  private generateContext(hasAuth: boolean): string {
+    if (hasAuth) {
+      return `import { initTRPC, TRPCError } from '@trpc/server';
 import superjson from 'superjson';
 import { ZodError } from 'zod';
 import { getServerAuthSession } from '../auth';
@@ -265,6 +272,36 @@ const enforceUserIsAuthed = t.middleware(({ ctx, next }) => {
 });
 
 export const protectedProcedure = t.procedure.use(enforceUserIsAuthed);
+`;
+    }
+
+    return `import { initTRPC } from '@trpc/server';
+import superjson from 'superjson';
+import { ZodError } from 'zod';
+
+export async function createTRPCContext(opts: { headers: Headers }) {
+  return {
+    session: null,
+    headers: opts.headers,
+  };
+};
+
+const t = initTRPC.context(createTRPCContext).create({
+  transformer: superjson,
+  errorFormatter({ shape, error }) {
+    return {
+      ...shape,
+      data: {
+        ...shape.data,
+        zodError: error.cause instanceof ZodError ? error.cause.flatten() : null,
+      },
+    };
+  },
+});
+
+export const createTRPCRouter = t.router;
+export const publicProcedure = t.procedure;
+export const protectedProcedure = t.procedure;
 `;
   }
 
