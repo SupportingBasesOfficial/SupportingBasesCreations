@@ -58,7 +58,6 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-950">
-      {/* Nav */}
       <nav className="fixed top-0 z-50 w-full border-b border-gray-100 bg-white/80 backdrop-blur-md dark:border-gray-900 dark:bg-gray-950/80">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2">
@@ -88,7 +87,6 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* Hero */}
       <section className="relative overflow-hidden pt-32 pb-20 sm:pt-40 sm:pb-28">
         <div className="absolute inset-0 -z-10">
           <div className="absolute left-1/2 top-0 -translate-x-1/2">
@@ -116,12 +114,11 @@ export default function LandingPage() {
           </div>
           <div className="mt-8 flex items-center justify-center gap-6 text-sm text-gray-500 dark:text-gray-400">
             <div className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-green-500" /> No credit card required</div>
-            <div className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-green-500" /> Open source</div>
+            <div className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-green-500" /> Free to start</div>
           </div>
         </div>
       </section>
 
-      {/* How It Works */}
       <section id="how-it-works" className="border-t border-gray-100 py-20 dark:border-gray-900 sm:py-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center">
@@ -144,7 +141,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Features */}
       <section id="features" className="bg-gray-50 py-20 dark:bg-gray-900/50 sm:py-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center">
@@ -165,7 +161,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Tech Stack */}
       <section id="tech-stack" className="py-20 sm:py-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center">
@@ -183,7 +178,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* CTA */}
       <section className="bg-gradient-to-br from-blue-600 to-purple-700 py-20 sm:py-28">
         <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">Ready to build your next project?</h2>
@@ -194,7 +188,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Footer */}
       <footer className="border-t border-gray-100 py-12 dark:border-gray-900">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">

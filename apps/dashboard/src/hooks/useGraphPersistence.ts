@@ -18,14 +18,14 @@ function getProjectIdFromUrl(): string | null {
 export function useGraphPersistence() {
   const loadGraph = useGraphStore((s) => s.loadGraph);
   const getGraph = useGraphStore((s) => s.getGraph);
-  const saveRef = useRef<() => void>(() => {});
+  const saveRef = useRef<() => boolean>(() => false);
 
   const saveToCache = useCallback(() => {
     const graph = getGraph();
     localStorage.setItem(CACHE_KEY, JSON.stringify(graph));
   }, [getGraph]);
 
-  const save = useCallback(async () => {
+  const save = useCallback(async (): Promise<boolean> => {
     const graph = getGraph();
     saveToCache();
 
@@ -35,23 +35,24 @@ export function useGraphPersistence() {
       const projectId = urlProjectId ?? storedProjectId;
 
       if (projectId) {
-        await fetch(`/api/projects/${projectId}`, {
+        const res = await fetch(`/api/projects/${projectId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ graphData: graph }),
         });
-        return;
+        return res.ok;
       }
 
       const existingId = localStorage.getItem(ARCH_ID_KEY);
       const body = { graph_json: graph };
 
       if (existingId) {
-        await fetch("/api/architectures", {
+        const res = await fetch("/api/architectures", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id: existingId, ...body }),
         });
+        return res.ok;
       } else {
         const res = await fetch("/api/architectures", {
           method: "POST",
@@ -62,9 +63,10 @@ export function useGraphPersistence() {
         if (data?.architecture?.id) {
           localStorage.setItem(ARCH_ID_KEY, data.architecture.id);
         }
+        return res.ok;
       }
     } catch {
-      // offline — cache is fallback, will sync next time
+      return false;
     }
   }, [getGraph, saveToCache]);
 
@@ -85,6 +87,7 @@ export function useGraphPersistence() {
   const loadFromCloud = useCallback(async (): Promise<boolean> => {
     try {
       const res = await fetch("/api/architectures");
+      if (!res.ok) return false;
       const data = await res.json();
       const archs = data?.architectures;
       if (archs && archs.length > 0) {

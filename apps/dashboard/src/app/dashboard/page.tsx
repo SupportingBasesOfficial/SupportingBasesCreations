@@ -81,7 +81,7 @@ export default function DashboardPage() {
   const [deployLogId, setDeployLogId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { oauthStatus, clearStatus } = useOAuthCallback();
-  const { load, save, setProjectId } = useGraphPersistence();
+  const { load, loadFromCloud, save, setProjectId } = useGraphPersistence();
   const cloudConfig = useDeployStore((s) => s.cloudConfig);
   const toast = useToast();
   const saveRef = useRef(save);
@@ -117,7 +117,12 @@ export default function DashboardPage() {
             }
           })
           .catch(() => load())
-      : load();
+      : (async () => {
+          const cloudLoaded = await loadFromCloud();
+          if (!cloudLoaded) {
+            load();
+          }
+        })();
 
     Promise.resolve(loadPromise).finally(() => setIsLoading(false));
 
@@ -133,7 +138,7 @@ export default function DashboardPage() {
       }
     }
     loadCloudConfig();
-  }, [load]);
+  }, [load, loadFromCloud, setProjectId]);
 
   useEffect(() => {
     if (oauthStatus?.success) {
@@ -164,13 +169,13 @@ export default function DashboardPage() {
         useGraphStore.getState().redo();
       } else if ((e.ctrlKey || e.metaKey) && e.key === "s") {
         e.preventDefault();
-        saveRef.current();
-        const currentProjectId = new URLSearchParams(
-          window.location.search,
-        ).get("project");
-        toast.success(
-          currentProjectId ? "Projeto salvo" : "Arquitetura salva no navegador",
-        );
+        saveRef.current().then((success) => {
+          if (success) {
+            toast.success("Arquitetura salva na nuvem");
+          } else {
+            toast.info("Arquitetura salva no navegador (offline)");
+          }
+        });
       } else if (e.key === "Delete" && !isInput) {
         e.preventDefault();
         const state = useGraphStore.getState();

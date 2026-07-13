@@ -1,7 +1,6 @@
 "use client";
 
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 import type { DeployResult, DeployProgress, CloudConfig } from "@sbc/shared";
 
 interface DeployState {
@@ -17,28 +16,20 @@ interface DeployState {
   reset: () => void;
 }
 
-export const useDeployStore = create<DeployState>()(
-  persist(
-    (set) => ({
-      isDeploying: false,
-      progress: null,
-      result: null,
-      cloudConfig: null,
+export const useDeployStore = create<DeployState>((set) => ({
+  isDeploying: false,
+  progress: null,
+  result: null,
+  cloudConfig: null,
 
-      setCloudConfig: (config) => set({ cloudConfig: config }),
+  setCloudConfig: (config) => set({ cloudConfig: config }),
 
-      startDeploy: () =>
-        set({ isDeploying: true, progress: null, result: null }),
+  startDeploy: () =>
+    set({ isDeploying: true, progress: null, result: null }),
 
-      updateProgress: (progress) => set({ progress }),
+  updateProgress: (progress) => set({ progress }),
 
-      setResult: (result) => set({ isDeploying: false, result }),
+  setResult: (result) => set({ isDeploying: false, result }),
 
-      reset: () => set({ isDeploying: false, progress: null, result: null }),
-    }),
-    {
-      name: "sbc-deploy-store",
-      partialize: (state) => ({ cloudConfig: state.cloudConfig }),
-    },
-  ),
-);
+  reset: () => set({ isDeploying: false, progress: null, result: null }),
+}));

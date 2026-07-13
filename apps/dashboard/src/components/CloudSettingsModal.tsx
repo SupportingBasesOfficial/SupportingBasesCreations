@@ -156,7 +156,7 @@ export function CloudSettingsModal({
     onClose();
   };
 
-  const handleDisconnect = (provider: ProviderId) => {
+  const handleDisconnect = async (provider: ProviderId) => {
     setProviders((prev) => ({
       ...prev,
       [provider]: { connected: false, token: "", owner: "" },
@@ -180,11 +180,15 @@ export function CloudSettingsModal({
       },
     };
     setCloudConfig(updatedConfig);
-    fetch("/api/cloud-config", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cloud_config: updatedConfig }),
-    }).catch(() => {});
+    try {
+      await fetch("/api/cloud-config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cloud_config: updatedConfig }),
+      });
+    } catch {
+      // offline
+    }
   };
 
   if (!open) return null;
@@ -322,9 +326,8 @@ export function CloudSettingsModal({
 
           <div className="rounded-md bg-blue-50 px-4 py-2 text-xs text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
             <ExternalLink size={12} className="mr-1 inline" />
-            Tokens são armazenados localmente no seu navegador e criptografados
-            em memória. Nunca enviados para nenhum servidor exceto a API do
-            provedor.
+            Tokens são salvos de forma segura na nuvem via Supabase e usados
+            apenas para deploys. Não são compartilhados com terceiros.
           </div>
 
           <button
