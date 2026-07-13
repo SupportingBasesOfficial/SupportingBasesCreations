@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { YjsCollaborationProvider, type PeerInfo } from "@sbc/core";
 
 export function useCollaboration(roomId: string, password?: string) {
@@ -9,9 +9,11 @@ export function useCollaboration(roomId: string, password?: string) {
   );
   const [peers, setPeers] = useState<PeerInfo[]>([]);
   const [isConnected, setIsConnected] = useState(false);
+  const mountedRef = useRef(false);
 
   useEffect(() => {
     if (!roomId) return;
+    mountedRef.current = true;
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -22,15 +24,22 @@ export function useCollaboration(roomId: string, password?: string) {
       supabaseUrl,
       supabaseKey,
     });
-    p.onPresence((updatedPeers) => setPeers(updatedPeers));
+    p.onPresence((updatedPeers) => {
+      if (mountedRef.current) setPeers(updatedPeers);
+    });
 
     p.connect()
-      .then(() => setIsConnected(true))
-      .catch(() => setIsConnected(false));
+      .then(() => {
+        if (mountedRef.current) setIsConnected(true);
+      })
+      .catch(() => {
+        if (mountedRef.current) setIsConnected(false);
+      });
 
     setProvider(p);
 
     return () => {
+      mountedRef.current = false;
       p.disconnect();
       setProvider(null);
       setIsConnected(false);

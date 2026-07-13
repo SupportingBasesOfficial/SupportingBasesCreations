@@ -20,6 +20,23 @@ const PEER_COLORS = [
   "#ec4899",
 ];
 
+// Cache Supabase clients to prevent WebSocket connection leaks
+let cachedSupabase: { url: string; key: string; client: unknown } | null = null;
+
+async function getSupabaseClient(url: string, key: string) {
+  if (cachedSupabase && cachedSupabase.url === url && cachedSupabase.key === key) {
+    return cachedSupabase.client;
+  }
+  const { createClient } = await import("@supabase/supabase-js");
+  const client = createClient(url, key, {
+    realtime: {
+      params: { eventsPerSecond: 2 },
+    },
+  });
+  cachedSupabase = { url, key, client };
+  return client;
+}
+
 interface YDocLike {
   getMap(name: string): YMapLike;
   getArray(name: string): YArrayLike;
@@ -66,6 +83,7 @@ export class YjsCollaborationProvider implements CollaborationProvider {
   private presenceHandlers: PresenceHandler[] = [];
   private peers: PeerInfo[] = [];
   private peerId: string;
+  private channel: unknown = null;
 
   constructor(options: YjsCollaborationOptions) {
     this.options = options;
@@ -94,12 +112,18 @@ export class YjsCollaborationProvider implements CollaborationProvider {
     // Use Supabase Realtime as cloud-native collaboration transport
     if (this.options.supabaseUrl && this.options.supabaseKey) {
       try {
-        const { createClient } = await import("@supabase/supabase-js");
-        const supabase = createClient(
+        const supabase = await getSupabaseClient(
           this.options.supabaseUrl,
           this.options.supabaseKey,
-        );
+        ) as {
+          channel: (name: string) => {
+            on: (event: string, filter: unknown, handler: (payload: unknown) => void) => unknown;
+            subscribe: (callback: (status: string) => void) => void;
+          };
+          removeChannel: (channel: unknown) => void;
+        };
         const channel = supabase.channel(`sbc-graph-${this.options.roomId}`);
+        this.channel = channel;
 
         channel
           .on("broadcast", { event: "graph-update" }, ({ payload }) => {
@@ -195,6 +219,7 @@ export class YjsCollaborationProvider implements CollaborationProvider {
     this.provider = null;
     this.persistence = null;
     this.awareness = null;
+    this.channel = null;
     this.connected = false;
     this.peers = [];
   }
