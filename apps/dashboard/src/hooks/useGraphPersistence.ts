@@ -18,7 +18,7 @@ function getProjectIdFromUrl(): string | null {
 export function useGraphPersistence() {
   const loadGraph = useGraphStore((s) => s.loadGraph);
   const getGraph = useGraphStore((s) => s.getGraph);
-  const saveRef = useRef<() => boolean>(() => false);
+  const saveRef = useRef<() => Promise<boolean>>(() => Promise.resolve(false));
 
   const saveToCache = useCallback(() => {
     const graph = getGraph();
