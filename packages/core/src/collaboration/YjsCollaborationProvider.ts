@@ -116,8 +116,9 @@ export class YjsCollaborationProvider implements CollaborationProvider {
           this.options.supabaseKey,
         ) as {
           channel: (name: string) => {
-            on: (event: string, filter: unknown, handler: (payload: unknown) => void) => unknown;
-            subscribe: (callback: (status: string) => void) => void;
+            on: (event: string, filter: unknown, handler: (payload: unknown) => void) => {
+              subscribe: (callback: (status: string) => void) => void;
+            };
           };
           removeChannel: (channel: unknown) => void;
         };
