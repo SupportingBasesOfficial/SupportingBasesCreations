@@ -83,7 +83,6 @@ export class YjsCollaborationProvider implements CollaborationProvider {
   private presenceHandlers: PresenceHandler[] = [];
   private peers: PeerInfo[] = [];
   private peerId: string;
-  private channel: unknown = null;
 
   constructor(options: YjsCollaborationOptions) {
     this.options = options;
@@ -123,10 +122,10 @@ export class YjsCollaborationProvider implements CollaborationProvider {
           removeChannel: (channel: unknown) => void;
         };
         const channel = supabase.channel(`sbc-graph-${this.options.roomId}`);
-        this.channel = channel;
 
         channel
-          .on("broadcast", { event: "graph-update" }, ({ payload }) => {
+          .on("broadcast", { event: "graph-update" }, (msg: unknown) => {
+            const { payload } = msg as { payload: Uint8Array };
             const update = payload as Uint8Array;
             const Y = this.doc as unknown as {
               applyUpdate: (update: Uint8Array) => void;
@@ -219,7 +218,6 @@ export class YjsCollaborationProvider implements CollaborationProvider {
     this.provider = null;
     this.persistence = null;
     this.awareness = null;
-    this.channel = null;
     this.connected = false;
     this.peers = [];
   }
