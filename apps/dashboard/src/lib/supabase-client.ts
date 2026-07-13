@@ -1,6 +1,6 @@
 "use client";
 
-import { createClient } from "@supabase/ssr";
+import { createBrowserClient } from "@supabase/ssr";
 
 let cachedClient: ReturnType<typeof createBrowserClient> | null = null;
 
